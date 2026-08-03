@@ -1,0 +1,30 @@
+# Example app-owned scenario library.
+#
+# A scenario is selected by matching `match` (a Go regular expression,
+# unanchored, first match in file order wins) against the FIRST user message
+# of the request. The turn within a scenario is the number of assistant
+# messages already present in the request; past the last turn the top-level
+# fallback is served.
+#
+# Three ways to use a file like this:
+#   1. Go:          defs, _ := gateway.LoadFile("scenarios.yaml"); srv := gateway.New(defs)
+#   2. Standalone:  go run github.com/inference-gateway/tokenless/cmd/tokenless@latest --scenarios scenarios.yaml
+#                   (or point TOKENLESS_SCENARIOS at the file)
+#   3. Via an app's own mock switch, e.g. the infer CLI:
+#        INFER_GATEWAY_MOCK=true INFER_GATEWAY_MOCK_SCENARIOS=$PWD/scenarios.yaml infer agent ...
+
+fallback:
+  content: "Done."
+
+scenarios:
+  - name: greeting
+    match: '(?i)^say hello'
+    turns:
+      - content: "Hello! How can I help?"
+
+  - name: write-approved
+    match: '(?i)create a file named approved\.txt'
+    turns:
+      - tool_calls:
+          - { name: Write, args: { file_path: "approved.txt", content: "hi" } }
+      - content: "The file was written."
