@@ -1,0 +1,24 @@
+#!/bin/sh
+# Pre-commit hook: run gofmt, go vet, and go test before every commit.
+# Activate with: git config core.hooksPath .githooks
+#
+# Runs against the root module only (not examples/), keeping it fast for
+# day-to-day work. CI covers the full matrix.
+
+set -e
+
+echo "--- gofmt (formatting check)"
+unformatted=$(gofmt -l .)
+if [ -n "$unformatted" ]; then
+	echo "ERROR: unformatted files:"
+	echo "$unformatted"
+	exit 1
+fi
+
+echo "--- go vet (static analysis)"
+go vet ./...
+
+echo "--- go test (root module)"
+go test ./...
+
+echo "--- all checks passed"
