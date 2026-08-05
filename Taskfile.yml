@@ -1,0 +1,36 @@
+# https://taskfile.dev
+version: '3'
+
+tasks:
+  default:
+    desc: Run the most common tasks (fmt, vet, build, test)
+    cmds:
+      - task: fmt
+      - task: vet
+      - task: build
+      - task: test
+
+  build:
+    desc: Build everything
+    cmds:
+      - go build ./...
+
+  fmt:
+    desc: Fix gofmt formatting
+    cmds:
+      - gofmt -w .
+
+  lint:
+    desc: Check gofmt formatting (fails if any file is unformatted)
+    cmds:
+      - test -z "$(gofmt -l .)"
+
+  vet:
+    desc: Run go vet static analysis
+    cmds:
+      - go vet ./...
+
+  test:
+    desc: Run all tests with race detector
+    cmds:
+      - go test -race ./...
