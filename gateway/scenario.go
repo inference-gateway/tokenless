@@ -21,6 +21,14 @@ var embeddedScenarios []byte
 // for scenario authors.
 var injectableStatuses = map[int]bool{408: true, 429: true, 500: true, 502: true, 503: true, 504: true}
 
+// ToolDef declares how to execute a tool: either as a Go-registered func
+// (test-side) or via an exec command (standalone binary / non-Go users).
+// Exec is an argv template: each element is a Go text/template over the
+// tool call's JSON args, e.g. ["cat", "{{.path}}"].
+type ToolDef struct {
+	Exec []string `yaml:"exec"`
+}
+
 // ScenarioFile is the root of a scenarios YAML document.
 type ScenarioFile struct {
 	// Fallback is rendered when no scenario matches the prompt or when a
@@ -31,6 +39,9 @@ type ScenarioFile struct {
 	// Models, when set, replaces the hardcoded /v1/models response with the
 	// given model list. When nil or empty the built-in model list is used.
 	Models []Model `yaml:"models,omitempty"`
+	// Tools maps tool names to their exec definitions. Opt-in; without it
+	// behavior is unchanged (tool results come from whatever the client sends).
+	Tools map[string]*ToolDef `yaml:"tools,omitempty"`
 }
 
 // Scenario is one scripted conversation, selected by regex and optionally
@@ -191,6 +202,12 @@ func LoadFile(path string) (*ScenarioFile, error) {
 func (f *ScenarioFile) validate() error {
 	if err := f.Fallback.validate("fallback"); err != nil {
 		return err
+	}
+
+	for name, def := range f.Tools {
+		if len(def.Exec) == 0 {
+			return fmt.Errorf("tool %q: exec is required", name)
+		}
 	}
 
 	seen := make(map[string]bool, len(f.Scenarios))
