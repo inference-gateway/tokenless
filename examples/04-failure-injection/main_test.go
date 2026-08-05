@@ -5,7 +5,6 @@ package main
 
 import (
 	"bufio"
-	"io"
 	"net/http"
 	"strings"
 	"testing"

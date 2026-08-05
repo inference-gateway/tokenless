@@ -5,7 +5,6 @@ package main
 
 import (
 	"context"
-	"strings"
 	"testing"
 
 	anthropic "github.com/anthropics/anthropic-sdk-go"

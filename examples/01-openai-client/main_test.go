@@ -6,7 +6,6 @@ package main
 
 import (
 	"context"
-	"strings"
 	"testing"
 
 	openai "github.com/openai/openai-go/v3"
