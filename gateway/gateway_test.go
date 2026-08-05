@@ -70,7 +70,7 @@ func readFrames(t *testing.T, body io.Reader) ([]CreateChatCompletionStreamRespo
 
 func TestDefaultScenariosAreValid(t *testing.T) {
 	defs := Default()
-	require.Len(t, defs.Scenarios, 20)
+	require.Len(t, defs.Scenarios, 21)
 	require.Equal(t, "Done.", defs.Fallback.Content)
 }
 
@@ -99,6 +99,50 @@ func TestResolve(t *testing.T) {
 			require.Equal(t, tt.wantContent, turn.Content)
 		})
 	}
+}
+
+func TestResolveModelFilter(t *testing.T) {
+	defs := Default()
+
+	t.Run("model filter skips when model does not match", func(t *testing.T) {
+		// The model-specific scenario requires "gpt-4o-mini", but the request
+		// uses "gpt-4o" — it should be skipped and fall through to fallback.
+		stream := false
+		req := &CreateChatCompletionRequest{Model: "gpt-4o", Messages: []Message{
+			mustText(t, System, "you are a test agent"),
+			mustText(t, User, "model specific"),
+		}, Stream: &stream}
+		name, step, turn := defs.resolve(req)
+		require.Equal(t, "", name, "model-specific scenario should be skipped when model doesn't match")
+		require.Equal(t, 0, step)
+		require.Equal(t, "Done.", turn.Content)
+	})
+
+	t.Run("model filter matches when model matches", func(t *testing.T) {
+		stream := false
+		req := &CreateChatCompletionRequest{Model: "gpt-4o-mini", Messages: []Message{
+			mustText(t, System, "you are a test agent"),
+			mustText(t, User, "model specific"),
+		}, Stream: &stream}
+		name, step, turn := defs.resolve(req)
+		require.Equal(t, "model-specific", name)
+		require.Equal(t, 0, step)
+		require.Equal(t, "This is a model-specific response for gpt-4o-mini.", turn.Content)
+	})
+
+	t.Run("model filter does not affect scenarios without model set", func(t *testing.T) {
+		// text-only has no model constraint, so it should match regardless
+		// of the request model.
+		stream := false
+		req := &CreateChatCompletionRequest{Model: "gpt-4o-mini", Messages: []Message{
+			mustText(t, System, "you are a test agent"),
+			mustText(t, User, "say hello"),
+		}, Stream: &stream}
+		name, step, turn := defs.resolve(req)
+		require.Equal(t, "text-only", name)
+		require.Equal(t, 0, step)
+		require.Equal(t, "Hello! How can I help?", turn.Content)
+	})
 }
 
 func TestResolveIgnoresLaterUserMessages(t *testing.T) {
