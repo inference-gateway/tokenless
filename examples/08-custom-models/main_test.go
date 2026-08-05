@@ -28,12 +28,12 @@ models:
       output_per_token: "0.000004"
       currency: "USD"
       source: "custom"
-    modalities: [text]
+    modalities: { input: [text], output: [text] }
   - id: my-vision-model
     object: model
     owned_by: me
     served_by: my-server
-    modalities: [text, image]
+    modalities: { input: [text, image], output: [text] }
 fallback:
   content: "Done."
 scenarios:
@@ -62,9 +62,11 @@ scenarios:
 	require.Equal(t, 4096, models.Data[0].ContextWindow.Tokens)
 	require.NotNil(t, models.Data[0].Pricing)
 	require.Equal(t, "0.000001", models.Data[0].Pricing.InputPerToken)
-	require.Len(t, models.Data[0].Modalities, 1)
-	require.Equal(t, gateway.ModelModalities("text"), models.Data[0].Modalities[0])
+	require.NotNil(t, models.Data[0].Modalities)
+	require.Equal(t, []gateway.Modality{"text"}, models.Data[0].Modalities.Input)
+	require.Equal(t, []gateway.Modality{"text"}, models.Data[0].Modalities.Output)
 
 	require.Equal(t, "my-vision-model", models.Data[1].ID)
-	require.Len(t, models.Data[1].Modalities, 2)
+	require.NotNil(t, models.Data[1].Modalities)
+	require.Equal(t, []gateway.Modality{"text", "image"}, models.Data[1].Modalities.Input)
 }

@@ -146,22 +146,22 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				{
 					ID: model, Object: "model", OwnedBy: "openai", ServedBy: "openai",
 					ContextWindow: &contextWindow, Pricing: &pricing,
-					Modalities: []ModelModalities{"text", "image"},
+					Modalities: &ModelModalities{Input: []Modality{"text", "image"}, Output: []Modality{"text"}},
 				},
 				{
 					ID: AnthropicModel, Object: "model", OwnedBy: "anthropic", ServedBy: "anthropic",
 					ContextWindow: &contextWindow, Pricing: &pricing,
-					Modalities: []ModelModalities{"text", "image"},
+					Modalities: &ModelModalities{Input: []Modality{"text", "image"}, Output: []Modality{"text"}},
 				},
 				{
 					ID: ImageModel, Object: "model", OwnedBy: "openai", ServedBy: "openai",
 					ContextWindow: &contextWindow, Pricing: &pricing,
-					Modalities: []ModelModalities{"image"},
+					Modalities: &ModelModalities{Input: []Modality{"text", "image"}, Output: []Modality{"image"}},
 				},
 				{
 					ID: DeepseekModel, Object: "model", OwnedBy: "deepseek", ServedBy: "deepseek",
 					ContextWindow: &contextWindow, Pricing: &pricing,
-					Modalities: []ModelModalities{"text"},
+					Modalities: &ModelModalities{Input: []Modality{"text"}, Output: []Modality{"text"}},
 				},
 			},
 		})

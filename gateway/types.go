@@ -185,19 +185,27 @@ type ContextWindow struct {
 	Source string `json:"source" yaml:"source"`
 }
 
-// ModelModalities is a modality a model supports (e.g. "text", "image").
-type ModelModalities string
+// Modality is a single input or output modality (e.g. "text", "image").
+type Modality string
+
+// ModelModalities mirrors the gateway's nested modalities shape: what a
+// model accepts (input) and what it produces (output). Image-generation
+// models carry "image" in output without "text".
+type ModelModalities struct {
+	Input  []Modality `json:"input" yaml:"input"`
+	Output []Modality `json:"output" yaml:"output"`
+}
 
 // Model is one /v1/models entry.
 type Model struct {
-	ID            string            `json:"id" yaml:"id"`
-	Object        string            `json:"object" yaml:"object"`
-	Created       int64             `json:"created" yaml:"created"`
-	OwnedBy       string            `json:"owned_by" yaml:"owned_by"`
-	ServedBy      string            `json:"served_by" yaml:"served_by"`
-	ContextWindow *ContextWindow    `json:"context_window,omitempty" yaml:"context_window,omitempty"`
-	Pricing       *Pricing          `json:"pricing,omitempty" yaml:"pricing,omitempty"`
-	Modalities    []ModelModalities `json:"modalities,omitempty" yaml:"modalities,omitempty"`
+	ID            string           `json:"id" yaml:"id"`
+	Object        string           `json:"object" yaml:"object"`
+	Created       int64            `json:"created" yaml:"created"`
+	OwnedBy       string           `json:"owned_by" yaml:"owned_by"`
+	ServedBy      string           `json:"served_by" yaml:"served_by"`
+	ContextWindow *ContextWindow   `json:"context_window,omitempty" yaml:"context_window,omitempty"`
+	Pricing       *Pricing         `json:"pricing,omitempty" yaml:"pricing,omitempty"`
+	Modalities    *ModelModalities `json:"modalities,omitempty" yaml:"modalities,omitempty"`
 }
 
 // ListModelsResponse is the /v1/models body.
