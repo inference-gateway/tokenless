@@ -185,15 +185,19 @@ type ContextWindow struct {
 	Source string `json:"source"`
 }
 
+// ModelModalities is a modality a model supports (e.g. "text", "image").
+type ModelModalities string
+
 // Model is one /v1/models entry.
 type Model struct {
-	ID            string         `json:"id"`
-	Object        string         `json:"object"`
-	Created       int64          `json:"created"`
-	OwnedBy       string         `json:"owned_by"`
-	ServedBy      string         `json:"served_by"`
-	ContextWindow *ContextWindow `json:"context_window,omitempty"`
-	Pricing       *Pricing       `json:"pricing,omitempty"`
+	ID            string           `json:"id"`
+	Object        string           `json:"object"`
+	Created       int64            `json:"created"`
+	OwnedBy       string           `json:"owned_by"`
+	ServedBy      string           `json:"served_by"`
+	ContextWindow *ContextWindow   `json:"context_window,omitempty"`
+	Pricing       *Pricing         `json:"pricing,omitempty"`
+	Modalities    []ModelModalities `json:"modalities,omitempty"`
 }
 
 // ListModelsResponse is the /v1/models body.

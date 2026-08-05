@@ -129,14 +129,17 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				{
 					ID: model, Object: "model", OwnedBy: "openai", ServedBy: "openai",
 					ContextWindow: &contextWindow, Pricing: &pricing,
+					Modalities: []ModelModalities{"text", "image"},
 				},
 				{
 					ID: AnthropicModel, Object: "model", OwnedBy: "anthropic", ServedBy: "anthropic",
 					ContextWindow: &contextWindow, Pricing: &pricing,
+					Modalities: []ModelModalities{"text", "image"},
 				},
 				{
 					ID: ImageModel, Object: "model", OwnedBy: "openai", ServedBy: "openai",
 					ContextWindow: &contextWindow, Pricing: &pricing,
+					Modalities: []ModelModalities{"image"},
 				},
 			},
 		})
