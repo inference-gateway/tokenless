@@ -99,8 +99,43 @@ srv := gateway.New(defs)                      // http.Handler; no args = built-i
 // after the test: srv.Requests() returns []Recorded for asserting what the agent sent
 ```
 
-Model constants: `gateway.DefaultModel` (`openai/gpt-4o`), `gateway.AnthropicModel`
-(`anthropic/claude-sonnet-4-5`), `gateway.ImageModel` (`openai/gpt-image-2`).
+Model constants: `gateway.DefaultModel` (`mock/openai/gpt-4o`), `gateway.AnthropicModel`
+(`mock/anthropic/claude-sonnet-4-5`), `gateway.ImageModel` (`mock/openai/gpt-image-2`),
+`gateway.DeepseekModel` (`mock/deepseek/deepseek-v4-flash`).
+
+## ToolLoop
+
+`ToolLoop` drives a multi-turn conversation against a tokenless mock, executing
+real tool implementations when the mock returns `tool_calls`:
+
+```go
+loop := &tokenless.ToolLoop{
+    BaseURL: mock.URL,
+    Model:   "gpt-4o",
+    Tools: map[string]tokenless.ToolFunc{
+        "read_file": func(ctx context.Context, args json.RawMessage) (string, error) {
+            // real tool implementation
+        },
+    },
+    // Approve is an optional callback to approve/reject each tool call.
+    // When nil, all tool calls are approved.
+    Approve: func(ctx context.Context, tc gateway.ChatCompletionMessageToolCall) bool {
+        return tc.Function.Name == "read_file"
+    },
+}
+result := loop.Run(t, "summarize config.yaml")
+// result.FinalContent holds the final assistant text
+```
+
+`LoadScenarioTools(defs)` registers exec-based tools from a `tools:` block in the
+scenario YAML, templating each tool's argv from the tool call's JSON args:
+
+```go
+loop.LoadScenarioTools(defs)
+```
+
+See `examples/09-real-tools/` and `examples/10-tool-call-approval/` for worked
+examples.
 
 ## Standalone binary
 
@@ -116,7 +151,9 @@ OpenAI/Anthropic client or non-Go test suite at the printed URL —
 client tests. Additional examples cover failure injection
 (`04-failure-injection/`), multi-turn conversations (`05-multi-turn/`),
 standalone binary usage (`06-standalone-binary/`), image generation
-(`07-image-generation/`), and custom model lists (`08-custom-models/`).
+(`07-image-generation/`), custom model lists (`08-custom-models/`),
+real tool invocation (`09-real-tools/`), and tool call approval
+(`10-tool-call-approval/`).
 
 ## Consumer mock switches
 
