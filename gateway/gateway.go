@@ -193,9 +193,9 @@ func (s *Server) handleCompletions(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Tokenless-Scenario", name)
 	w.Header().Set("X-Tokenless-Step", fmt.Sprintf("%d", step))
 	if turn.Expect != nil {
-			if fails := s.checkExpect(name, step, r.URL.Path, &req, turn.Expect); len(fails) > 0 {
-				w.Header().Set("X-Tokenless-Expect-Failure", "true")
-			}
+		if fails := s.checkExpect(name, step, r.URL.Path, &req, turn.Expect); len(fails) > 0 {
+			w.Header().Set("X-Tokenless-Expect-Failure", "true")
+		}
 	}
 	s.record(Recorded{
 		Endpoint: r.URL.Path,

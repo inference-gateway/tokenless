@@ -54,7 +54,7 @@ scenarios:
 `))
 	require.NoError(t, err)
 	mock := tokenless.StartMock(t, defs)
-	
+
 	res := app(t, mock.URL).Run(t, "ask", "what is the meaning of life?")
 
 	require.Zero(t, res.ExitCode, "stderr: %s", res.Stderr)
