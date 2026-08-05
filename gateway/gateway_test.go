@@ -242,7 +242,7 @@ func TestModelsAndHealthEndpoints(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = unknown.Body.Close() }()
 	require.Equal(t, http.StatusNotFound, unknown.StatusCode)
-})
+}
 
 func TestCustomModels(t *testing.T) {
 	defs, err := Load([]byte(`

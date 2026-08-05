@@ -25,11 +25,18 @@ Endpoints: `POST /v1/chat/completions` (sync + SSE), `POST /v1/messages`
 ## scenarios.yaml
 
 ```yaml
+# Optional: custom model list for GET /v1/models (omit for built-in list)
+models:
+  - id: my-custom-model
+    object: model
+    owned_by: me
+
 fallback:
   content: "Done." # served when no scenario matches or turns run out
 scenarios:
   - name: write-approved # required, unique
     match: '(?i)create a file named approved\.txt' # Go regex, unanchored
+    model: gpt-4o-mini # optional: only match requests for this model
     turns:
       - tool_calls:
           - { name: Write, args: { file_path: "approved.txt", content: "hi" } }
@@ -39,7 +46,9 @@ scenarios:
 Resolution is stateless: the scenario is chosen by matching `match` against the
 latest real user message (`<system-reminder>` blocks and background-job notices
 are skipped; first match wins), and the turn index is the count of assistant
-messages already in the request. Turn fields:
+messages already in the request. Scenarios may also set `model` to constrain
+matching to a specific request model (exact string match; unset = no constraint).
+Turn fields:
 
 | Field        | Meaning                                                                          |
 | ------------ | -------------------------------------------------------------------------------- |
