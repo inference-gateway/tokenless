@@ -33,7 +33,7 @@ func BuildBinary(srcDir, reuseEnvVar string) (string, func(), error) {
 
 	build := exec.Command("go", "build", "-o", binPath, ".")
 	build.Dir = srcDir
-	if out, err := build.CombinedOutput(); err != nil {
+	if _, err := build.CombinedOutput(); err != nil {
 		_ = os.RemoveAll(dir)
 		return "", nil, err
 	}
