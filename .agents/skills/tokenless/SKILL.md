@@ -68,7 +68,7 @@ library is `gateway/scenarios.yaml`.
 ## Go tests: the tokenless package
 
 `github.com/inference-gateway/tokenless` — the full worked example is
-`examples/cobra-agent/`.
+`examples/00-cobra-agent/`.
 
 ```go
 func TestMain(m *testing.M) {
@@ -111,8 +111,12 @@ go run github.com/inference-gateway/tokenless/cmd/tokenless --port 0 --scenarios
 Flags: `--host`, `--port` (0 = free port, printed on start), `--scenarios`
 (default `$TOKENLESS_SCENARIOS`, then built-in), `--model`. Point any
 OpenAI/Anthropic client or non-Go test suite at the printed URL —
-`examples/clients/` has OpenAI, Anthropic, and inference-gateway SDK client
-programs.
+`examples/01-openai-client/`, `examples/02-anthropic-client/`, and
+`examples/03-sdk-client/` have OpenAI, Anthropic, and inference-gateway SDK
+client tests. Additional examples cover failure injection
+(`04-failure-injection/`), multi-turn conversations (`05-multi-turn/`),
+standalone binary usage (`06-standalone-binary/`), image generation
+(`07-image-generation/`), and custom model lists (`08-custom-models/`).
 
 ## Consumer mock switches
 
