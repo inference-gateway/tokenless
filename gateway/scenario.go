@@ -28,6 +28,9 @@ type ScenarioFile struct {
 	Fallback Turn `yaml:"fallback"`
 	// Scenarios are evaluated in file order; the first regex match wins.
 	Scenarios []Scenario `yaml:"scenarios"`
+	// Models, when set, replaces the hardcoded /v1/models response with the
+	// given model list. When nil or empty the built-in model list is used.
+	Models []Model `yaml:"models,omitempty"`
 }
 
 // Scenario is one scripted conversation, selected by regex and optionally

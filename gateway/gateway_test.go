@@ -242,6 +242,39 @@ func TestModelsAndHealthEndpoints(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = unknown.Body.Close() }()
 	require.Equal(t, http.StatusNotFound, unknown.StatusCode)
+})
+
+func TestCustomModels(t *testing.T) {
+	defs, err := Load([]byte(`
+fallback:
+  content: "Done."
+scenarios:
+  - name: test
+    match: x
+    turns:
+      - content: "y"
+models:
+  - id: custom-model
+    object: model
+    owned_by: test
+    served_by: test
+`))
+	require.NoError(t, err)
+	require.Len(t, defs.Models, 1)
+	require.Equal(t, "custom-model", defs.Models[0].ID)
+
+	ts := httptest.NewServer(New(defs))
+	defer ts.Close()
+
+	resp, err := http.Get(ts.URL + "/v1/models")
+	require.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	var models ListModelsResponse
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&models))
+	require.Len(t, models.Data, 1)
+	require.Equal(t, "custom-model", models.Data[0].ID)
 }
 
 func TestSyncTextResponse(t *testing.T) {
