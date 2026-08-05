@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0](https://github.com/inference-gateway/tokenless/compare/v0.4.0...v0.5.0) (2026-08-05)
+
+### ✨ Features
+
+* restructure model modalities into nested input/output ([#31](https://github.com/inference-gateway/tokenless/issues/31)) ([7da93d2](https://github.com/inference-gateway/tokenless/commit/7da93d212aeb137e055c440afad92abe567d98ae))
+
 ## [0.4.0](https://github.com/inference-gateway/tokenless/compare/v0.3.0...v0.4.0) (2026-08-05)
 
 ### ✨ Features
