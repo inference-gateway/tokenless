@@ -38,6 +38,13 @@ type ToolLoop struct {
 	// context.Background() is used. Set this to inject test helpers (e.g.
 	// a *Mock for in-tool assertions) via context.WithValue.
 	Context context.Context
+
+	// Approve is an optional callback that decides whether a tool call
+	// should be executed. It receives the tool call and returns true to
+	// approve or false to reject. A rejected tool call returns a "denied"
+	// result to the model and the loop continues. If nil, all tool calls
+	// are approved (backward compatible).
+	Approve func(ctx context.Context, tc gateway.ChatCompletionMessageToolCall) bool
 }
 
 // Run sends prompt as a user message and loops until the model responds
@@ -88,6 +95,18 @@ func (l *ToolLoop) Run(t testing.TB, prompt string) *ToolLoopResult {
 			if ctx == nil {
 				ctx = context.Background()
 			}
+
+			// Check approval before executing.
+			if l.Approve != nil && !l.Approve(ctx, tc) {
+				id := tc.ID
+				messages = append(messages, gateway.Message{
+					Role:       gateway.Tool,
+					ToolCallID: &id,
+					Content:    gateway.Text("Tool call denied"),
+				})
+				continue
+			}
+
 			result, err := fn(ctx, json.RawMessage(tc.Function.Arguments))
 			require.NoError(t, err, "tool %q failed", tc.Function.Name)
 
