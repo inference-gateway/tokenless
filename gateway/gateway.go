@@ -24,16 +24,19 @@ import (
 
 // DefaultModel is the primary model the mock advertises on /v1/models. Model
 // ids carry the provider prefix; request bodies arrive with it stripped.
-const DefaultModel = "openai/gpt-4o"
+const DefaultModel = "mock/openai/gpt-4o"
 
 // AnthropicModel is the Anthropic model the mock advertises; apps typically
 // route it through POST /v1/messages (native Anthropic SSE) instead of
 // /v1/chat/completions.
-const AnthropicModel = "anthropic/claude-sonnet-4-5"
+const AnthropicModel = "mock/anthropic/claude-sonnet-4-5"
 
 // ImageModel is the image-generation model the mock advertises, for agents
 // whose image tools post to /v1/images/generations or /v1/images/edits.
-const ImageModel = "openai/gpt-image-2"
+const ImageModel = "mock/openai/gpt-image-2"
+
+// DeepseekModel is a text-only model for testing text-only modality filtering.
+const DeepseekModel = "mock/deepseek/deepseek-v4-flash"
 
 // Metadata advertised for every model on /v1/models: the gateway extensions
 // (context_window, pricing) are always populated so cost accounting in the
@@ -140,6 +143,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					ID: ImageModel, Object: "model", OwnedBy: "openai", ServedBy: "openai",
 					ContextWindow: &contextWindow, Pricing: &pricing,
 					Modalities: []ModelModalities{"image"},
+				},
+				{
+					ID: DeepseekModel, Object: "model", OwnedBy: "deepseek", ServedBy: "deepseek",
+					ContextWindow: &contextWindow, Pricing: &pricing,
+					Modalities: []ModelModalities{"text"},
 				},
 			},
 		})
