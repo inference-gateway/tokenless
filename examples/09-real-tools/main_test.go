@@ -1,0 +1,107 @@
+// Testing real tool invocation: the ToolLoop drives a multi-turn conversation
+// against the mock, executing registered Go tool funcs (or exec-based tools
+// from the scenario spec) when the mock returns tool_calls, and feeding the
+// real output back as tool results.
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	tokenless "github.com/inference-gateway/tokenless"
+	gateway "github.com/inference-gateway/tokenless/gateway"
+)
+
+// TestGoTools registers real Go tool implementations in the ToolLoop.
+// The mock returns scripted tool_calls; ToolLoop.Run executes the real
+// read_file func and feeds the real file content back as the tool result.
+func TestGoTools(t *testing.T) {
+	defs, err := gateway.Load([]byte(`
+fallback:
+  content: "Done."
+scenarios:
+  - name: summarize-config
+    match: '(?i)summarize.*config'
+    turns:
+      - tool_calls:
+          - { name: read_file, args: { path: "config.yaml" } }
+      - content: "Your config uses port 8080."
+`))
+	require.NoError(t, err)
+
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "config.yaml"), []byte("port: 8080\n"), 0o600))
+
+	mock := tokenless.StartMock(t, defs)
+
+	loop := &tokenless.ToolLoop{
+		BaseURL: mock.URL,
+		Model:   "gpt-4o",
+		Tools: map[string]tokenless.ToolFunc{
+			"read_file": func(ctx context.Context, args json.RawMessage) (string, error) {
+				var a struct{ Path string `json:"path"` }
+				if err := json.Unmarshal(args, &a); err != nil {
+					return "", err
+				}
+				b, err := os.ReadFile(a.Path)
+				return string(b), err
+			},
+		},
+	}
+
+	result := loop.Run(t, "summarize config.yaml")
+	require.Contains(t, result.FinalContent, "port 8080")
+	mock.AssertExpectations(t)
+}
+
+// TestExecTools loads exec-based tool definitions from the scenario file
+// via LoadScenarioTools. Each tool runs as a subprocess with its argv
+// templated from the tool call's JSON args.
+func TestExecTools(t *testing.T) {
+	defs, err := gateway.Load([]byte(`
+tools:
+  read_file:
+    exec: ["cat", "{{.path}}"]
+fallback:
+  content: "Done."
+scenarios:
+  - name: summarize-config
+    match: '(?i)summarize.*config'
+    turns:
+      - tool_calls:
+          - { name: read_file, args: { path: "config.yaml" } }
+      - content: "Your config uses port 8080."
+`))
+	require.NoError(t, err)
+
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config.yaml")
+	require.NoError(t, os.WriteFile(cfg, []byte("port: 8080\n"), 0o600))
+
+	mock := tokenless.StartMock(t, defs)
+
+	loop := &tokenless.ToolLoop{
+		BaseURL: mock.URL,
+		Model:   "gpt-4o",
+	}
+	loop.LoadScenarioTools(defs)
+
+	// Override the path to use the temp dir file.
+	loop.Tools["read_file"] = func(ctx context.Context, args json.RawMessage) (string, error) {
+		var a struct{ Path string `json:"path"` }
+		if err := json.Unmarshal(args, &a); err != nil {
+			return "", err
+		}
+		b, err := os.ReadFile(a.Path)
+		return string(b), err
+	}
+
+	result := loop.Run(t, "summarize config.yaml")
+	require.Contains(t, result.FinalContent, "port 8080")
+	mock.AssertExpectations(t)
+}
