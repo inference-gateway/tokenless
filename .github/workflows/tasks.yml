@@ -27,6 +27,10 @@ on:
         description: Image generation model (workflow_dispatch only)
         required: false
         default: ""
+      agents:
+        description: A2A agents to spin up (comma-separated, workflow_dispatch only)
+        required: false
+        default: ""
   issues:
     types:
       - opened
@@ -64,7 +68,7 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
-      - uses: inference-gateway/infer-action@v0.44.2
+      - uses: inference-gateway/infer-action@v0.44.4
         with:
           debug: "true"
           github-token: ${{ steps.app-token.outputs.token }}
@@ -102,9 +106,7 @@ jobs:
           plugins: |
             DietrichGebert/ponytail
             ayghri/i-have-adhd
-          agents: |
-            documentation-agent
-            browser-agent
+          agents: ${{ inputs.agents || 'documentation-agent,browser-agent' }}
           llamacpp-api-url: ${{ secrets.LLAMACPP_API_URL }}
           llamacpp-api-key: ${{ secrets.LLAMACPP_API_KEY }}
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
