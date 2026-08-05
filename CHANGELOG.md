@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0](https://github.com/inference-gateway/tokenless/compare/v0.4.0...v0.5.0) (2026-08-05)
+
+### ✨ Features
+
+* restructure model modalities into nested input/output ([#31](https://github.com/inference-gateway/tokenless/issues/31)) ([7da93d2](https://github.com/inference-gateway/tokenless/commit/7da93d212aeb137e055c440afad92abe567d98ae))
+
+## [0.4.0](https://github.com/inference-gateway/tokenless/compare/v0.3.0...v0.4.0) (2026-08-05)
+
+### ✨ Features
+
+* add ToolLoop for real tool invocation in tests and examples ([#24](https://github.com/inference-gateway/tokenless/issues/24)) ([bd99421](https://github.com/inference-gateway/tokenless/commit/bd99421d0a706f7952ac00a1b37ac21f5bd0a6d8))
+
+### 👷 CI
+
+* sync OpenTask Agent workflow ([#25](https://github.com/inference-gateway/tokenless/issues/25)) ([697a3a4](https://github.com/inference-gateway/tokenless/commit/697a3a4d3dff9fb8fa5f75673193c4fa0e89b273))
+* sync OpenTask Agent workflow ([#26](https://github.com/inference-gateway/tokenless/issues/26)) ([ed99179](https://github.com/inference-gateway/tokenless/commit/ed99179fbde868cb6a62e927f4e7d6dcfca429a6))
+* sync OpenTask Agent workflow ([#28](https://github.com/inference-gateway/tokenless/issues/28)) ([04592cf](https://github.com/inference-gateway/tokenless/commit/04592cf5cd26067dd5be7e427a07a50c33256c25))
+
+### 🔧 Miscellaneous
+
+* add Taskfile with build, lint, vet, fmt, test tasks ([#27](https://github.com/inference-gateway/tokenless/issues/27)) ([13489b2](https://github.com/inference-gateway/tokenless/commit/13489b2c12f03b58e50b2dbe93f50605e536ad82))
+
 ## [0.3.0](https://github.com/inference-gateway/tokenless/compare/v0.2.0...v0.3.0) (2026-08-05)
 
 ### ✨ Features
