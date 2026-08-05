@@ -37,7 +37,7 @@ func TestAskAnswersFromScenario(t *testing.T) {
 	mock := tokenless.StartMock(t)
 
 	res := app(t, mock.URL).Run(t, "ask", "say hello")
-	
+
 	require.Zero(t, res.ExitCode, "stderr: %s", res.Stderr)
 	require.Equal(t, "Hello! How can I help?", strings.TrimSpace(res.Stdout))
 }
