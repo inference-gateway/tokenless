@@ -18,6 +18,7 @@ import (
 	"io"
 	"net/http"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 )
@@ -85,6 +86,8 @@ type Server struct {
 	mu    sync.Mutex
 	fails map[string]int
 	reqs  []Recorded
+
+	expectFails []ExpectFailure
 }
 
 // New returns a Server serving the given scenario definitions; with no
@@ -102,6 +105,13 @@ func (s *Server) Requests() []Recorded {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return slices.Clone(s.reqs)
+}
+
+// ExpectFailures returns a copy of all recorded expectation failures.
+func (s *Server) ExpectFailures() []ExpectFailure {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return slices.Clone(s.expectFails)
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -157,6 +167,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		})
 	case r.Method == http.MethodPost && (r.URL.Path == "/v1/images/generations" || r.URL.Path == "/v1/images/edits"):
 		s.handleImages(w, r)
+	case r.Method == http.MethodGet && r.URL.Path == "/v1/expect":
+		s.handleExpect(w, r)
 	case r.Method == http.MethodGet && r.URL.Path == "/v1/health":
 		writeJSON(w, map[string]string{"status": "ok"})
 	default:
@@ -180,6 +192,11 @@ func (s *Server) handleCompletions(w http.ResponseWriter, r *http.Request) {
 	stream := req.Stream != nil && *req.Stream
 	w.Header().Set("X-Tokenless-Scenario", name)
 	w.Header().Set("X-Tokenless-Step", fmt.Sprintf("%d", step))
+	if turn.Expect != nil {
+			if fails := s.checkExpect(name, step, r.URL.Path, &req, turn.Expect); len(fails) > 0 {
+				w.Header().Set("X-Tokenless-Expect-Failure", "true")
+			}
+	}
 	s.record(Recorded{
 		Endpoint: r.URL.Path,
 		Provider: r.URL.Query().Get("provider"),
@@ -519,4 +536,165 @@ const onePixelPNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mN
 func writeJSON(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(v)
+}
+
+// checkExpect validates the incoming request against the turn's expect block.
+// It records any mismatches and returns them. The turn is still served as normal.
+func (s *Server) checkExpect(scenario string, step int, endpoint string, req *CreateChatCompletionRequest, expect *ExpectBlock) []ExpectFailure {
+	var fails []ExpectFailure
+
+	if expect.Model != "" && expect.Model != req.Model {
+		fails = append(fails, ExpectFailure{
+			Scenario: scenario, Step: step, Field: "model",
+			Want: expect.Model, Got: req.Model,
+		})
+	}
+
+	if expect.Endpoint != "" && expect.Endpoint != endpoint {
+		fails = append(fails, ExpectFailure{
+			Scenario: scenario, Step: step, Field: "endpoint",
+			Want: expect.Endpoint, Got: endpoint,
+		})
+	}
+
+	if len(expect.Messages) > 0 {
+		if fail := checkMessages(scenario, step, req.Messages, expect.Messages); fail != nil {
+			fails = append(fails, *fail)
+		}
+	}
+
+	if len(expect.ToolCalls) > 0 {
+		if fail := checkToolCalls(scenario, step, req.Messages, expect.ToolCalls); fail != nil {
+			fails = append(fails, *fail)
+		}
+	}
+
+	if len(fails) > 0 {
+		s.mu.Lock()
+		s.expectFails = append(s.expectFails, fails...)
+		s.mu.Unlock()
+	}
+	return fails
+}
+
+// checkMessages checks that expected messages appear as an ordered subsequence.
+func checkMessages(scenario string, step int, actual []Message, expected []ExpectMessage) *ExpectFailure {
+	ei := 0
+	for _, a := range actual {
+		if ei >= len(expected) {
+			break
+		}
+		e := expected[ei]
+		if string(a.Role) == e.Role && strings.Contains(a.Content.Text(), e.Content) {
+			ei++
+		}
+	}
+	if ei < len(expected) {
+		return &ExpectFailure{
+			Scenario: scenario, Step: step, Field: "messages",
+			Want: expected[ei].Role + ":" + expected[ei].Content,
+			Got:  "not found in order",
+		}
+	}
+	return nil
+}
+
+// checkToolCalls checks that the most recent assistant message has the expected
+// tool calls in order, with deep partial match on args.
+func checkToolCalls(scenario string, step int, messages []Message, expected []ExpectToolCall) *ExpectFailure {
+	// Find the most recent assistant message with tool calls.
+	var lastToolMsg *Message
+	for i := len(messages) - 1; i >= 0; i-- {
+		if messages[i].Role == Assistant && messages[i].ToolCalls != nil {
+			lastToolMsg = &messages[i]
+			break
+		}
+	}
+	if lastToolMsg == nil {
+		return &ExpectFailure{
+			Scenario: scenario, Step: step, Field: "tool_calls",
+			Want: fmt.Sprintf("%d tool calls", len(expected)),
+			Got:  "no assistant message with tool calls",
+		}
+	}
+
+	calls := *lastToolMsg.ToolCalls
+	if len(calls) < len(expected) {
+		return &ExpectFailure{
+			Scenario: scenario, Step: step, Field: "tool_calls",
+			Want: fmt.Sprintf("%d tool calls", len(expected)),
+			Got:  fmt.Sprintf("%d tool calls", len(calls)),
+		}
+	}
+
+	for i, e := range expected {
+		a := calls[i]
+		if a.Function.Name != e.Name {
+			return &ExpectFailure{
+				Scenario: scenario, Step: step, Field: "tool_calls",
+				Want: fmt.Sprintf("tool_calls[%d].name=%s", i, e.Name),
+				Got:  fmt.Sprintf("tool_calls[%d].name=%s", i, a.Function.Name),
+			}
+		}
+		if len(e.Args) > 0 {
+			var actualArgs map[string]any
+			if err := json.Unmarshal([]byte(a.Function.Arguments), &actualArgs); err != nil {
+				return &ExpectFailure{
+					Scenario: scenario, Step: step, Field: "tool_calls",
+					Want: fmt.Sprintf("tool_calls[%d].args=%v", i, e.Args),
+					Got:  fmt.Sprintf("invalid JSON: %s", a.Function.Arguments),
+				}
+			}
+			for k, wantV := range e.Args {
+				gotV, ok := actualArgs[k]
+				if !ok {
+					return &ExpectFailure{
+						Scenario: scenario, Step: step, Field: "tool_calls",
+						Want: fmt.Sprintf("tool_calls[%d].args.%s=%v", i, k, wantV),
+						Got:  fmt.Sprintf("key %q missing", k),
+					}
+				}
+				wantJSON, _ := json.Marshal(wantV)
+				gotJSON, _ := json.Marshal(gotV)
+				if string(wantJSON) != string(gotJSON) {
+					return &ExpectFailure{
+						Scenario: scenario, Step: step, Field: "tool_calls",
+						Want: fmt.Sprintf("tool_calls[%d].args.%s=%s", i, k, wantJSON),
+						Got:  fmt.Sprintf("tool_calls[%d].args.%s=%s", i, k, gotJSON),
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// handleExpect serves the GET /v1/expect endpoint: a JSON report of recorded
+// expectation failures. Status 200 when clean, 412 when any failure exists.
+func (s *Server) handleExpect(w http.ResponseWriter, r *http.Request) {
+	fails := s.ExpectFailures()
+	status := http.StatusOK
+	if len(fails) > 0 {
+		status = http.StatusPreconditionFailed
+	}
+	w.WriteHeader(status)
+	writeJSON(w, map[string]any{"failures": fails})
+}
+
+// projectMessages converts an Anthropic messages request into the chat
+// completions shape for expect checking.
+func (s *Server) projectMessages(req *CreateMessagesRequest) *CreateChatCompletionRequest {
+	projected := make([]Message, 0, len(req.Messages))
+	for _, m := range req.Messages {
+		text := messagesText(m.Content)
+		if m.Role == MessagesRoleUser && text == "" {
+			continue
+		}
+		role := User
+		if m.Role == MessagesRoleAssistant {
+			role = Assistant
+		}
+		projected = append(projected, Message{Role: role, Content: Text(text)})
+	}
+	return &CreateChatCompletionRequest{Model: req.Model, Messages: projected}
 }
