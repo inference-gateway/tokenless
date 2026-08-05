@@ -30,6 +30,12 @@ func (s *Server) handleMessages(w http.ResponseWriter, r *http.Request) {
 	stream := req.Stream != nil && *req.Stream
 	w.Header().Set("X-Tokenless-Scenario", name)
 	w.Header().Set("X-Tokenless-Step", fmt.Sprintf("%d", step))
+	if turn.Expect != nil {
+		projected := s.projectMessages(&req)
+		if fails := s.checkExpect(name, step, r.URL.Path, projected, turn.Expect); len(fails) > 0 {
+			w.Header().Set("X-Tokenless-Expect-Failure", "true")
+		}
+	}
 	s.record(Recorded{
 		Endpoint:     r.URL.Path,
 		Provider:     r.URL.Query().Get("provider"),

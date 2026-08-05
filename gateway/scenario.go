@@ -77,6 +77,9 @@ type Turn struct {
 	Stall *StallInject `yaml:"stall"`
 	// Malformed emits one non-JSON data: frame early in the stream.
 	Malformed bool `yaml:"malformed"`
+	// Expect validates the incoming request that resolved to this turn.
+	// A mismatch is recorded but the turn is still served as normal.
+	Expect *ExpectBlock `yaml:"expect"`
 }
 
 // ToolCall describes one function call the mock model requests.
@@ -87,6 +90,37 @@ type ToolCall struct {
 	Args map[string]any `yaml:"args"`
 
 	argsJSON string
+}
+
+// ExpectBlock declares what the incoming request that resolved to this turn
+// must look like. All fields are optional; only set fields are checked.
+// Matching is tolerant: messages is an ordered subsequence match, tool_calls
+// is a deep partial match on args (expected keys must be present and equal,
+// extra keys allowed).
+type ExpectBlock struct {
+	// Model is an exact string match against the request model.
+	Model string `yaml:"model,omitempty"`
+	// Endpoint is an exact string match against the request path.
+	Endpoint string `yaml:"endpoint,omitempty"`
+	// ToolCalls matches the request's most recent assistant message, ordered,
+	// with deep partial match on args.
+	ToolCalls []ExpectToolCall `yaml:"tool_calls,omitempty"`
+	// Messages is an ordered subsequence match: each expected message must
+	// appear, in order, with exact role and substring content; extra messages
+	// are allowed.
+	Messages []ExpectMessage `yaml:"messages,omitempty"`
+}
+
+// ExpectToolCall is one expected tool call in an expect block.
+type ExpectToolCall struct {
+	Name string         `yaml:"name"`
+	Args map[string]any `yaml:"args,omitempty"`
+}
+
+// ExpectMessage is one expected message in an expect block.
+type ExpectMessage struct {
+	Role    string `yaml:"role"`
+	Content string `yaml:"content"`
 }
 
 // Usage overrides the token usage reported for a turn. CacheWriteTokens is
@@ -201,6 +235,11 @@ func (t *Turn) validate(where string) error {
 	if t.ChunkSize < 0 || t.DelayMs < 0 {
 		return fmt.Errorf("%s: chunk_size and delay_ms must be >= 0", where)
 	}
+	if t.Expect != nil {
+		if err := t.Expect.validate(where); err != nil {
+			return err
+		}
+	}
 	if t.Error != nil {
 		if !injectableStatuses[t.Error.Status] {
 			return fmt.Errorf("%s: error.status must be one of 408, 429, 500, 502, 503, 504", where)
@@ -227,6 +266,22 @@ func (t *Turn) validate(where string) error {
 			return fmt.Errorf("%s: tool_calls[%d].args: %w", where, i, err)
 		}
 		tc.argsJSON = string(args)
+	}
+	return nil
+}
+
+func (e *ExpectBlock) validate(where string) error {
+	for i := range e.ToolCalls {
+		tc := &e.ToolCalls[i]
+		if tc.Name == "" {
+			return fmt.Errorf("%s: expect.tool_calls[%d].name is required", where, i)
+		}
+	}
+	for i := range e.Messages {
+		m := &e.Messages[i]
+		if m.Role == "" {
+			return fmt.Errorf("%s: expect.messages[%d].role is required", where, i)
+		}
 	}
 	return nil
 }

@@ -284,6 +284,15 @@ type MessagesMessage struct {
 	Content MessagesContent     `json:"content"`
 }
 
+// ExpectFailure records one expectation mismatch for test assertions.
+type ExpectFailure struct {
+	Scenario string `json:"scenario"`
+	Step     int    `json:"step"`
+	Field    string `json:"field"`
+	Want     string `json:"want"`
+	Got      string `json:"got"`
+}
+
 // CreateMessagesRequest is the decoded POST /v1/messages body.
 type CreateMessagesRequest struct {
 	Model     string            `json:"model"`
