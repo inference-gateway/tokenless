@@ -85,8 +85,8 @@ scenarios:
 
 	mock := tokenless.StartMock(t, defs)
 
-	// Inject the mock into the context so the tool function can assert
-	// things during execution, not just at the end.
+	// Inject the mock into the context so the tool function can detect
+	// it is running in a test and skip real external calls.
 	type ctxKey struct{}
 	ctx := context.WithValue(context.Background(), ctxKey{}, mock)
 
@@ -97,19 +97,22 @@ scenarios:
 	}
 	loop.LoadScenarioTools(defs)
 
-	// Override the path to use the temp dir file, and assert inside the tool.
+	// Override the tool to demonstrate the API-skip pattern: a tool that
+	// would normally make an external API call, but in tests returns
+	// canned data when the mock is detected in the context.
 	loop.Tools["read_file"] = func(ctx context.Context, args json.RawMessage) (string, error) {
 		var a struct{ Path string `json:"path"` }
 		if err := json.Unmarshal(args, &a); err != nil {
 			return "", err
 		}
-		b, err := os.ReadFile(a.Path)
 
-		// Assert inside the tool using the mock from context.
-		if m, ok := ctx.Value(ctxKey{}).(*tokenless.Mock); ok {
-			m.AssertExpectations(t)
+		// In tests, skip the real API call and return test data.
+		if _, ok := ctx.Value(ctxKey{}).(*tokenless.Mock); ok {
+			return "port: 8080\n", nil
 		}
 
+		// Real implementation: would make an HTTP API call here.
+		b, err := os.ReadFile(a.Path)
 		return string(b), err
 	}
 
