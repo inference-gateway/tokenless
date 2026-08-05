@@ -105,8 +105,6 @@ func TestResolveModelFilter(t *testing.T) {
 	defs := Default()
 
 	t.Run("model filter skips when model does not match", func(t *testing.T) {
-		// The model-specific scenario requires "gpt-4o-mini", but the request
-		// uses "gpt-4o" — it should be skipped and fall through to fallback.
 		stream := false
 		req := &CreateChatCompletionRequest{Model: "gpt-4o", Messages: []Message{
 			mustText(t, System, "you are a test agent"),
