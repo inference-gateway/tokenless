@@ -29,6 +29,7 @@ scenarios:
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config.yaml")
 	require.NoError(t, os.WriteFile(cfg, []byte("port: 8080\n"), 0o600))
+	t.Chdir(dir)
 
 	mock := StartMock(t, defs)
 
@@ -37,7 +38,9 @@ scenarios:
 		Model:   "gpt-4o",
 		Tools: map[string]ToolFunc{
 			"read_file": func(ctx context.Context, args json.RawMessage) (string, error) {
-				var a struct{ Path string `json:"path"` }
+				var a struct {
+					Path string `json:"path"`
+				}
 				if err := json.Unmarshal(args, &a); err != nil {
 					return "", err
 				}
@@ -72,6 +75,7 @@ scenarios:
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config.yaml")
 	require.NoError(t, os.WriteFile(cfg, []byte("port: 8080\n"), 0o600))
+	t.Chdir(dir)
 
 	mock := StartMock(t, defs)
 
@@ -83,7 +87,9 @@ scenarios:
 
 	// Override the path to use the temp dir file.
 	loop.Tools["read_file"] = func(ctx context.Context, args json.RawMessage) (string, error) {
-		var a struct{ Path string `json:"path"` }
+		var a struct {
+			Path string `json:"path"`
+		}
 		if err := json.Unmarshal(args, &a); err != nil {
 			return "", err
 		}
@@ -116,10 +122,17 @@ scenarios:
 		Model:   "gpt-4o",
 	}
 
-	// Run should fail the test because "nonexistent" is not registered.
-	// We can't easily assert on t.Error calls, so we just verify it panics
-	// or fails via require.True in the tool check.
+	// Run must fail on an unregistered tool. require's failure path calls
+	// Errorf+FailNow on the TB, so a stub that panics in FailNow (and
+	// swallows Errorf so the real test stays green) makes it observable.
 	require.Panics(t, func() {
-		loop.Run(t, "unknown tool")
+		loop.Run(failNowPanics{t}, "unknown tool")
 	})
 }
+
+// failNowPanics is a testing.TB whose failure path panics instead of
+// marking the embedded test as failed.
+type failNowPanics struct{ testing.TB }
+
+func (failNowPanics) Errorf(string, ...any) {}
+func (failNowPanics) FailNow()              { panic("FailNow") }

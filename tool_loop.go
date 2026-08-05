@@ -8,8 +8,8 @@ import (
 	"io"
 	"net/http"
 	"os/exec"
-	"text/template"
 	"testing"
+	"text/template"
 
 	"github.com/stretchr/testify/require"
 
