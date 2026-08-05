@@ -103,9 +103,9 @@ scenarios:
 	}
 
 	result := loop.Run(t, "write a file")
-	// The tool was rejected, so the loop continues and eventually
-	// hits the fallback or next turn.
-	require.Contains(t, result.FinalContent, "Done.")
+	// The tool was rejected, so the loop continues and the
+	// scenario's next turn provides the response.
+	require.Contains(t, result.FinalContent, "The file was written.")
 	mock.AssertExpectations(t)
 }
 
