@@ -95,6 +95,7 @@ scenarios:
 | `POST /v1/messages`                                   | Anthropic-native: thinking/text/tool_use blocks, `input_json_delta` fragments, cache-aware usage            |
 | `POST /v1/images/generations`, `POST /v1/images/edits`| Canned 1x1 PNG so decode-and-save paths run end to end                                                     |
 | `GET /v1/models`                                      | Model list with pricing and context-window metadata                                                        |
+| `GET /v1/expect`                                      | JSON report of recorded expectation failures; `200` when clean, `412` otherwise |
 | `GET /v1/health`                                      | `{"status":"ok"}`                                                                                          |
 
 ## Usage
@@ -102,14 +103,15 @@ scenarios:
 **1. Go import** - embed the mock in your tests:
 
 ```go
-import "github.com/inference-gateway/tokenless/harness"
+import "github.com/inference-gateway/tokenless"
 
 func TestSomething(t *testing.T) {
-    gw, url := harness.StartMock(t)
-    app := harness.App{Bin: binPath, Env: map[string]string{"MYAPP_GATEWAY_URL": url}}
+    mock := tokenless.StartMock(t)
+    orc := tokenless.Orchestrator{Bin: binPath, Env: map[string]string{"MYAPP_GATEWAY_URL": mock.URL}}
 
-    res := app.Run(t, "agent", "say hello")
+    res := orc.Run(t, "agent", "say hello")
     require.Zero(t, res.ExitCode)
+    mock.AssertExpectations(t)
     ...
 }
 ```
@@ -150,9 +152,9 @@ streaming) and the
 [examples/cobra-agent](examples/cobra-agent) is a complete worked example: a
 small [cobra](https://github.com/spf13/cobra) CLI whose gateway URL comes from
 an environment variable, and a [test](examples/cobra-agent/main_test.go) that
-builds the real binary once (`harness.BuildBinary` in `TestMain`), starts the
-mock (`harness.StartMock`), runs the binary as a subprocess
-(`harness.App{...}.Run`), and asserts on its stdout and exit code - including
+builds the real binary once (`tokenless.BuildBinary` in `TestMain`), starts the
+mock (`tokenless.StartMock`), runs the binary as a subprocess
+(`tokenless.Orchestrator{...}.Run`), and asserts on its stdout and exit code - including
 a custom inline scenario and a failure path. The examples live in their own Go
 module, so none of their dependencies touch the library.
 
@@ -162,18 +164,55 @@ See [examples/scenarios.yaml](examples/scenarios.yaml) for a commented example
 and [gateway/scenarios.yaml](gateway/scenarios.yaml) for the embedded default
 library. When a scenario runs out of turns the top-level `fallback` is served,
 which lets a headless agent terminate naturally. Runnable Go examples live in
-[gateway/example_test.go](gateway/example_test.go) and, for the test helpers,
-[harness/harness_test.go](harness/harness_test.go).
+[gateway/example_test.go](gateway/example_test.go).
+
+### Expect blocks
+
+Each turn can carry an `expect` block that validates the incoming request that
+resolved to that turn. A mismatch is recorded but the turn is still served as
+normal, keeping the conversation on script.
+
+```yaml
+turns:
+  - tool_calls:
+      - { name: Write, args: { file_path: "hi.txt", content: "hi" } }
+  - expect:
+      model: gpt-4o
+      endpoint: /v1/chat/completions
+      tool_calls:
+        - name: Write
+          args: { file_path: "hi.txt" }
+      messages:
+        - role: tool
+          content: "fixture content"
+    content: "The file was written."
+```
+
+Supported `expect` fields:
+
+| Field        | Matching rule                                                                 |
+| ------------ | ----------------------------------------------------------------------------- |
+| `model`      | Exact string match against the request model                                  |
+| `endpoint`   | Exact string match against the request path                                   |
+| `messages`   | Ordered subsequence: each expected message must appear in order, with exact `role` and substring `content`; extra messages allowed |
+| `tool_calls` | Ordered, deep partial match on `args`: expected keys must be present and equal, extra keys allowed |
+
+Failures are surfaced three ways:
+- `Mock.ExpectFailures() []ExpectFailure` in Go
+- `Mock.AssertExpectations(t)` with readable want/got diffs
+- `GET /v1/expect` returns a JSON report (200 when clean, 412 otherwise)
+- `X-Tokenless-Expect-Failure` header on the mismatched response
 
 ## Packages
 
+- `tokenless` (root) - Go test helpers: `StartMock` (returns `*Mock` with `URL`
+  and `AssertExpectations`), `Orchestrator`/`Orchestrator.Run` (hermetic
+  subprocess runs with caller-supplied env), `BuildBinary` (build once in
+  TestMain), `JSONLines`/`ContentsByRole`/`StatusOfType` (NDJSON assertions),
+  and tmux TUI drivers (`SendKeys`, `CapturePane`, `WaitForPane`).
 - `gateway` - the HTTP server, scenario parser/validator (`Load`, `LoadFile`,
   `Default`), the hand-written wire types, and the embedded default scenario
   library. Zero dependencies beyond yaml.
-- `harness` - Go test helpers: `BuildBinary` (build once in TestMain),
-  `App`/`App.Run` (hermetic subprocess runs with caller-supplied env),
-  `JSONLines`/`ContentsByRole`/`StatusOfType` (NDJSON assertions), and tmux
-  TUI drivers (`SendKeys`, `CapturePane`, `WaitForPane`).
 - `cmd/tokenless` - the standalone binary.
 
 ## Alternatives
