@@ -1,3 +1,1 @@
-# Mark .githooks as vendored so the pre-commit shell script doesn't
-# inflate Shell language statistics on the repo overview.
 .githooks/** linguist-vendored
