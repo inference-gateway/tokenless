@@ -22,11 +22,16 @@ func TestStandaloneBinary(t *testing.T) {
 	require.NoError(t, err)
 	defer cleanup()
 
+	// HTTP client with a timeout so the test never hangs.
+	hc := &http.Client{Timeout: 5 * time.Second}
+
 	// Start the binary on a free port.
 	cmd := exec.Command(bin, "--port", "0")
 	stdout, err := cmd.StdoutPipe()
 	require.NoError(t, err)
 	require.NoError(t, cmd.Start())
+	defer cmd.Process.Kill()
+	defer cmd.Wait()
 
 	// Read the "tokenless listening on http://..." line.
 	urlCh := make(chan string, 1)
@@ -44,18 +49,12 @@ func TestStandaloneBinary(t *testing.T) {
 	select {
 	case url = <-urlCh:
 	case <-time.After(10 * time.Second):
-		cmd.Process.Kill()
-		cmd.Wait()
 		t.Fatal("timed out waiting for binary to start")
 	}
 
-	// Kill the server when done.
-	defer cmd.Process.Kill()
-	defer cmd.Wait()
-
 	// Wait for the server to be ready.
 	require.Eventually(t, func() bool {
-		resp, err := http.Get(url + "/v1/health")
+		resp, err := hc.Get(url + "/v1/health")
 		if err != nil {
 			return false
 		}
@@ -64,7 +63,7 @@ func TestStandaloneBinary(t *testing.T) {
 	}, 5*time.Second, 100*time.Millisecond)
 
 	// Hit /v1/models.
-	resp, err := http.Get(url + "/v1/models")
+	resp, err := hc.Get(url + "/v1/models")
 	require.NoError(t, err)
 	defer resp.Body.Close()
 	require.Equal(t, 200, resp.StatusCode)
@@ -73,7 +72,7 @@ func TestStandaloneBinary(t *testing.T) {
 
 	// Hit /v1/chat/completions.
 	body := `{"model":"gpt-4o","messages":[{"role":"user","content":"say hello"}]}`
-	resp2, err := http.Post(url+"/v1/chat/completions", "application/json", strings.NewReader(body))
+	resp2, err := hc.Post(url+"/v1/chat/completions", "application/json", strings.NewReader(body))
 	require.NoError(t, err)
 	defer resp2.Body.Close()
 	require.Equal(t, 200, resp2.StatusCode)

@@ -68,7 +68,8 @@ scenarios:
 	require.Equal(t, gateway.Stop, turn1.Choices[0].FinishReason)
 	require.Equal(t, "The file was written.", turn1.Choices[0].Message.Content.Text())
 
-	// Turn 2: past the last turn, fallback is served.
+	// Turn 2: a new user message re-anchors the scenario, so step resets to 0
+	// and turn 0 (tool_calls) is served again.
 	body3 := `{"model":"gpt-4o","messages":[{"role":"user","content":"create a file named approved.txt"},{"role":"assistant","tool_calls":[{"id":"call_0_0","type":"function","function":{"name":"Write","arguments":"{}"}}]},{"role":"tool","tool_call_id":"call_0_0","content":"done"},{"role":"assistant","content":"The file was written."},{"role":"user","content":"create a file named approved.txt"}]}`
 	resp3, err := http.Post(mock.URL+"/v1/chat/completions", "application/json", strings.NewReader(body3))
 	require.NoError(t, err)
@@ -76,10 +77,10 @@ scenarios:
 
 	require.Equal(t, 200, resp3.StatusCode)
 	require.Equal(t, "write-approved", resp3.Header.Get("X-Tokenless-Scenario"))
-	require.Equal(t, "2", resp3.Header.Get("X-Tokenless-Step"))
+	require.Equal(t, "0", resp3.Header.Get("X-Tokenless-Step"))
 
 	var turn2 gateway.CreateChatCompletionResponse
 	b3, _ := io.ReadAll(resp3.Body)
 	require.NoError(t, json.Unmarshal(b3, &turn2))
-	require.Equal(t, "Done.", turn2.Choices[0].Message.Content.Text())
+	require.Equal(t, gateway.ToolCalls, turn2.Choices[0].FinishReason)
 }
