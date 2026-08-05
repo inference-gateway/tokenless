@@ -33,6 +33,11 @@ type ToolLoop struct {
 	BaseURL string
 	Model   string
 	Tools   map[string]ToolFunc
+
+	// Context is the context passed to each ToolFunc invocation. If nil,
+	// context.Background() is used. Set this to inject test helpers (e.g.
+	// a *Mock for in-tool assertions) via context.WithValue.
+	Context context.Context
 }
 
 // Run sends prompt as a user message and loops until the model responds
@@ -79,7 +84,11 @@ func (l *ToolLoop) Run(t testing.TB, prompt string) *ToolLoopResult {
 			fn, ok := l.Tools[tc.Function.Name]
 			require.True(t, ok, "unregistered tool: %q", tc.Function.Name)
 
-			result, err := fn(context.Background(), json.RawMessage(tc.Function.Arguments))
+			ctx := l.Context
+			if ctx == nil {
+				ctx = context.Background()
+			}
+			result, err := fn(ctx, json.RawMessage(tc.Function.Arguments))
 			require.NoError(t, err, "tool %q failed", tc.Function.Name)
 
 			id := tc.ID
