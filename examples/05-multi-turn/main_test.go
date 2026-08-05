@@ -23,7 +23,7 @@ fallback:
   content: "Done."
 scenarios:
   - name: write-approved
-    match: '(?i)create a file named approved\\.txt'
+    match: '(?i)create a file named approved\.txt'
     turns:
       - tool_calls:
           - { name: Write, args: { file_path: "approved.txt", content: "hi" } }
