@@ -67,7 +67,9 @@ jobs:
           version: 3.x
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-go@v7.0.0
+        with:
+          go-version: stable
 
       - uses: inference-gateway/infer-action@v0.45.0
         with:
