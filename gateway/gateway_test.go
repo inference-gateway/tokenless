@@ -129,8 +129,6 @@ func TestResolveModelFilter(t *testing.T) {
 	})
 
 	t.Run("model filter does not affect scenarios without model set", func(t *testing.T) {
-		// text-only has no model constraint, so it should match regardless
-		// of the request model.
 		stream := false
 		req := &CreateChatCompletionRequest{Model: "gpt-4o-mini", Messages: []Message{
 			mustText(t, System, "you are a test agent"),
