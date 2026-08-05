@@ -1,28 +1,25 @@
 // Testing an app built on the official OpenAI Go client: point the client's
-// base URL at tokenless and nothing else changes. Your production code keeps
-// constructing the client from a config value; the test sets that value to
-// the mock's URL.
-//
-//	go run ./openai
+// base URL at tokenless via StartMock and nothing else changes. Your
+// production code keeps constructing the client from a config value; the test
+// sets that value to the mock's URL.
 package main
 
 import (
 	"context"
-	"fmt"
-	"net/http/httptest"
+	"testing"
 
 	openai "github.com/openai/openai-go/v3"
 	option "github.com/openai/openai-go/v3/option"
+	"github.com/stretchr/testify/require"
 
-	gateway "github.com/inference-gateway/tokenless/gateway"
+	tokenless "github.com/inference-gateway/tokenless"
 )
 
-func main() {
-	ts := httptest.NewServer(gateway.New())
-	defer ts.Close()
+func TestOpenAIClientSync(t *testing.T) {
+	mock := tokenless.StartMock(t)
 
 	client := openai.NewClient(
-		option.WithBaseURL(ts.URL+"/v1"),
+		option.WithBaseURL(mock.URL+"/v1"),
 		option.WithAPIKey("tokenless"),
 	)
 
@@ -30,10 +27,17 @@ func main() {
 		Model:    "gpt-4o",
 		Messages: []openai.ChatCompletionMessageParamUnion{openai.UserMessage("say hello")},
 	})
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println("sync:", resp.Choices[0].Message.Content)
+	require.NoError(t, err)
+	require.Equal(t, "Hello! How can I help?", resp.Choices[0].Message.Content)
+}
+
+func TestOpenAIClientStream(t *testing.T) {
+	mock := tokenless.StartMock(t)
+
+	client := openai.NewClient(
+		option.WithBaseURL(mock.URL+"/v1"),
+		option.WithAPIKey("tokenless"),
+	)
 
 	stream := client.Chat.Completions.NewStreaming(context.Background(), openai.ChatCompletionNewParams{
 		Model:    "gpt-4o",
@@ -46,8 +50,6 @@ func main() {
 			streamed += chunk.Choices[0].Delta.Content
 		}
 	}
-	if err := stream.Err(); err != nil {
-		panic(err)
-	}
-	fmt.Println("streamed:", streamed)
+	require.NoError(t, stream.Err())
+	require.Equal(t, "Hello! How can I help?", streamed)
 }
