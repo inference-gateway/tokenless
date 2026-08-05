@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.0](https://github.com/inference-gateway/tokenless/compare/v0.5.0...v0.6.0) (2026-08-05)
+
+### ✨ Features
+
+* **tool_loop:** add tool call approval callback ([#29](https://github.com/inference-gateway/tokenless/issues/29)) ([1454928](https://github.com/inference-gateway/tokenless/commit/145492871a2220b06526e0ce86161055b5f1527d))
+
+### 📚 Documentation
+
+* update tokenless skill for codebase drift ([#32](https://github.com/inference-gateway/tokenless/issues/32)) ([f6f20f8](https://github.com/inference-gateway/tokenless/commit/f6f20f8118a7a479d731bcb26e165dcc52c0a11f))
+
+### 🔧 Miscellaneous
+
+* change model version to 'preview' in tasks.yml ([b6d677a](https://github.com/inference-gateway/tokenless/commit/b6d677a30c5d52f2f845b65630cf0cd4adde3ca5))
+* update default model version in tasks.yml ([75aef86](https://github.com/inference-gateway/tokenless/commit/75aef86594140fd73100e9e1fd1baaca8b6e5bda))
+
 ## [0.5.0](https://github.com/inference-gateway/tokenless/compare/v0.4.0...v0.5.0) (2026-08-05)
 
 ### ✨ Features
