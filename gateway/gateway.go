@@ -111,6 +111,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case r.Method == http.MethodPost && r.URL.Path == "/v1/messages":
 		s.handleMessages(w, r)
 	case r.Method == http.MethodGet && r.URL.Path == "/v1/models":
+		if len(s.defs.Models) > 0 {
+			writeJSON(w, ListModelsResponse{Object: "list", Data: s.defs.Models})
+			break
+		}
 		cachePrice := DefaultCachePrice
 		cacheWritePrice := DefaultCacheWritePrice
 		pricing := Pricing{

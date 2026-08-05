@@ -70,7 +70,7 @@ func readFrames(t *testing.T, body io.Reader) ([]CreateChatCompletionStreamRespo
 
 func TestDefaultScenariosAreValid(t *testing.T) {
 	defs := Default()
-	require.Len(t, defs.Scenarios, 20)
+	require.Len(t, defs.Scenarios, 21)
 	require.Equal(t, "Done.", defs.Fallback.Content)
 }
 
@@ -99,6 +99,46 @@ func TestResolve(t *testing.T) {
 			require.Equal(t, tt.wantContent, turn.Content)
 		})
 	}
+}
+
+func TestResolveModelFilter(t *testing.T) {
+	defs := Default()
+
+	t.Run("model filter skips when model does not match", func(t *testing.T) {
+		stream := false
+		req := &CreateChatCompletionRequest{Model: "gpt-4o", Messages: []Message{
+			mustText(t, System, "you are a test agent"),
+			mustText(t, User, "model specific"),
+		}, Stream: &stream}
+		name, step, turn := defs.resolve(req)
+		require.Equal(t, "", name, "model-specific scenario should be skipped when model doesn't match")
+		require.Equal(t, 0, step)
+		require.Equal(t, "Done.", turn.Content)
+	})
+
+	t.Run("model filter matches when model matches", func(t *testing.T) {
+		stream := false
+		req := &CreateChatCompletionRequest{Model: "gpt-4o-mini", Messages: []Message{
+			mustText(t, System, "you are a test agent"),
+			mustText(t, User, "model specific"),
+		}, Stream: &stream}
+		name, step, turn := defs.resolve(req)
+		require.Equal(t, "model-specific", name)
+		require.Equal(t, 0, step)
+		require.Equal(t, "This is a model-specific response for gpt-4o-mini.", turn.Content)
+	})
+
+	t.Run("model filter does not affect scenarios without model set", func(t *testing.T) {
+		stream := false
+		req := &CreateChatCompletionRequest{Model: "gpt-4o-mini", Messages: []Message{
+			mustText(t, System, "you are a test agent"),
+			mustText(t, User, "say hello"),
+		}, Stream: &stream}
+		name, step, turn := defs.resolve(req)
+		require.Equal(t, "text-only", name)
+		require.Equal(t, 0, step)
+		require.Equal(t, "Hello! How can I help?", turn.Content)
+	})
 }
 
 func TestResolveIgnoresLaterUserMessages(t *testing.T) {
@@ -198,6 +238,39 @@ func TestModelsAndHealthEndpoints(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = unknown.Body.Close() }()
 	require.Equal(t, http.StatusNotFound, unknown.StatusCode)
+}
+
+func TestCustomModels(t *testing.T) {
+	defs, err := Load([]byte(`
+fallback:
+  content: "Done."
+scenarios:
+  - name: test
+    match: x
+    turns:
+      - content: "y"
+models:
+  - id: custom-model
+    object: model
+    owned_by: test
+    served_by: test
+`))
+	require.NoError(t, err)
+	require.Len(t, defs.Models, 1)
+	require.Equal(t, "custom-model", defs.Models[0].ID)
+
+	ts := httptest.NewServer(New(defs))
+	defer ts.Close()
+
+	resp, err := http.Get(ts.URL + "/v1/models")
+	require.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	var models ListModelsResponse
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&models))
+	require.Len(t, models.Data, 1)
+	require.Equal(t, "custom-model", models.Data[0].ID)
 }
 
 func TestSyncTextResponse(t *testing.T) {

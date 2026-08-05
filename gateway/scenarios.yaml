@@ -7,6 +7,63 @@
 # fallback is served, which lets the headless agent's completion check
 # (two consecutive turns without tool calls) terminate naturally.
 
+# Models advertised on GET /v1/models. When omitted the gateway falls back to
+# a hardcoded list matching these same four entries. Override by providing your
+# own models section in a custom scenarios.yaml.
+models:
+  - id: mock/openai/gpt-4o
+    object: model
+    owned_by: openai
+    served_by: openai
+    context_window: { tokens: 128000, source: "provider" }
+    pricing:
+      input_per_token: "0.0000025"
+      output_per_token: "0.00001"
+      cache_read_per_token: "0.00000025"
+      cache_write_per_token: "0.000003125"
+      currency: "USD"
+      source: "provider"
+    modalities: [text, image]
+  - id: mock/anthropic/claude-sonnet-4-5
+    object: model
+    owned_by: anthropic
+    served_by: anthropic
+    context_window: { tokens: 128000, source: "provider" }
+    pricing:
+      input_per_token: "0.0000025"
+      output_per_token: "0.00001"
+      cache_read_per_token: "0.00000025"
+      cache_write_per_token: "0.000003125"
+      currency: "USD"
+      source: "provider"
+    modalities: [text, image]
+  - id: mock/openai/gpt-image-2
+    object: model
+    owned_by: openai
+    served_by: openai
+    context_window: { tokens: 128000, source: "provider" }
+    pricing:
+      input_per_token: "0.0000025"
+      output_per_token: "0.00001"
+      cache_read_per_token: "0.00000025"
+      cache_write_per_token: "0.000003125"
+      currency: "USD"
+      source: "provider"
+    modalities: [image]
+  - id: mock/deepseek/deepseek-v4-flash
+    object: model
+    owned_by: deepseek
+    served_by: deepseek
+    context_window: { tokens: 128000, source: "provider" }
+    pricing:
+      input_per_token: "0.0000025"
+      output_per_token: "0.00001"
+      cache_read_per_token: "0.00000025"
+      cache_write_per_token: "0.000003125"
+      currency: "USD"
+      source: "provider"
+    modalities: [text]
+
 fallback:
   content: "Done."
 
@@ -147,3 +204,9 @@ scenarios:
     turns:
       - content: "hello-from-subagent-probe"
       - content: "hello-from-subagent-probe"
+
+  - name: model-specific
+    match: '(?i)model specific'
+    model: gpt-4o-mini
+    turns:
+      - content: "This is a model-specific response for gpt-4o-mini."

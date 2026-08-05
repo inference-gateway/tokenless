@@ -63,6 +63,12 @@ is served by position - derived from how many assistant messages are already
 in the request.
 
 ```yaml
+# Optional: custom model list for GET /v1/models (omit for built-in list)
+models:
+  - id: my-custom-model
+    object: model
+    owned_by: me
+
 fallback:
   content: "Done."
 
@@ -73,6 +79,12 @@ scenarios:
       - tool_calls:
           - { name: Write, args: { file_path: "approved.txt", content: "hi" } }
       - content: "The file was written."
+
+  - name: model-specific
+    match: '(?i)model specific'
+    model: gpt-4o-mini  # optional: only match requests for this model
+    turns:
+      - content: "This is a model-specific response for gpt-4o-mini."
 ```
 
 ## Supported Endpoints

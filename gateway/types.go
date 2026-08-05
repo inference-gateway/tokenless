@@ -171,18 +171,18 @@ type CompletionUsage struct {
 
 // Pricing is the gateway's per-token pricing extension on /v1/models.
 type Pricing struct {
-	InputPerToken      string  `json:"input_per_token"`
-	OutputPerToken     string  `json:"output_per_token"`
-	CacheReadPerToken  *string `json:"cache_read_per_token,omitempty"`
-	CacheWritePerToken *string `json:"cache_write_per_token,omitempty"`
-	Currency           string  `json:"currency"`
-	Source             string  `json:"source"`
+	InputPerToken      string  `json:"input_per_token" yaml:"input_per_token"`
+	OutputPerToken     string  `json:"output_per_token" yaml:"output_per_token"`
+	CacheReadPerToken  *string `json:"cache_read_per_token,omitempty" yaml:"cache_read_per_token,omitempty"`
+	CacheWritePerToken *string `json:"cache_write_per_token,omitempty" yaml:"cache_write_per_token,omitempty"`
+	Currency           string  `json:"currency" yaml:"currency"`
+	Source             string  `json:"source" yaml:"source"`
 }
 
 // ContextWindow is the gateway's context-window extension on /v1/models.
 type ContextWindow struct {
-	Tokens int    `json:"tokens"`
-	Source string `json:"source"`
+	Tokens int    `json:"tokens" yaml:"tokens"`
+	Source string `json:"source" yaml:"source"`
 }
 
 // ModelModalities is a modality a model supports (e.g. "text", "image").
@@ -190,14 +190,14 @@ type ModelModalities string
 
 // Model is one /v1/models entry.
 type Model struct {
-	ID            string            `json:"id"`
-	Object        string            `json:"object"`
-	Created       int64             `json:"created"`
-	OwnedBy       string            `json:"owned_by"`
-	ServedBy      string            `json:"served_by"`
-	ContextWindow *ContextWindow    `json:"context_window,omitempty"`
-	Pricing       *Pricing          `json:"pricing,omitempty"`
-	Modalities    []ModelModalities `json:"modalities,omitempty"`
+	ID            string            `json:"id" yaml:"id"`
+	Object        string            `json:"object" yaml:"object"`
+	Created       int64             `json:"created" yaml:"created"`
+	OwnedBy       string            `json:"owned_by" yaml:"owned_by"`
+	ServedBy      string            `json:"served_by" yaml:"served_by"`
+	ContextWindow *ContextWindow    `json:"context_window,omitempty" yaml:"context_window,omitempty"`
+	Pricing       *Pricing          `json:"pricing,omitempty" yaml:"pricing,omitempty"`
+	Modalities    []ModelModalities `json:"modalities,omitempty" yaml:"modalities,omitempty"`
 }
 
 // ListModelsResponse is the /v1/models body.
