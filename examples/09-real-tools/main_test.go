@@ -8,7 +8,6 @@ import (
 	"context"
 	"encoding/json"
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -34,8 +33,9 @@ scenarios:
 `))
 	require.NoError(t, err)
 
-	dir := t.TempDir()
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "config.yaml"), []byte("port: 8080\n"), 0o600))
+	cfg := "config.yaml"
+	t.Cleanup(func() { os.Remove(cfg) })
+	require.NoError(t, os.WriteFile(cfg, []byte("port: 8080\n"), 0o600))
 
 	mock := tokenless.StartMock(t, defs)
 
@@ -44,7 +44,9 @@ scenarios:
 		Model:   "gpt-4o",
 		Tools: map[string]tokenless.ToolFunc{
 			"read_file": func(ctx context.Context, args json.RawMessage) (string, error) {
-				var a struct{ Path string `json:"path"` }
+				var a struct {
+					Path string `json:"path"`
+				}
 				if err := json.Unmarshal(args, &a); err != nil {
 					return "", err
 				}
@@ -79,8 +81,8 @@ scenarios:
 `))
 	require.NoError(t, err)
 
-	dir := t.TempDir()
-	cfg := filepath.Join(dir, "config.yaml")
+	cfg := "config.yaml"
+	t.Cleanup(func() { os.Remove(cfg) })
 	require.NoError(t, os.WriteFile(cfg, []byte("port: 8080\n"), 0o600))
 
 	mock := tokenless.StartMock(t, defs)
@@ -101,7 +103,9 @@ scenarios:
 	// would normally make an external API call, but in tests returns
 	// canned data when the mock is detected in the context.
 	loop.Tools["read_file"] = func(ctx context.Context, args json.RawMessage) (string, error) {
-		var a struct{ Path string `json:"path"` }
+		var a struct {
+			Path string `json:"path"`
+		}
 		if err := json.Unmarshal(args, &a); err != nil {
 			return "", err
 		}
