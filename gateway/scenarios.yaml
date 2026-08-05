@@ -147,3 +147,9 @@ scenarios:
     turns:
       - content: "hello-from-subagent-probe"
       - content: "hello-from-subagent-probe"
+
+  - name: model-specific
+    match: '(?i)model-specific request'
+    model: gpt-4o
+    turns:
+      - content: "This scenario only matches requests to gpt-4o."

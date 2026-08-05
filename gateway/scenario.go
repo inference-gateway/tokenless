@@ -30,13 +30,17 @@ type ScenarioFile struct {
 	Scenarios []Scenario `yaml:"scenarios"`
 }
 
-// Scenario is one scripted conversation, selected by regex.
+// Scenario is one scripted conversation, selected by regex and optionally
+// constrained to a specific model.
 type Scenario struct {
 	// Name uniquely identifies the scenario in recordings and logs.
 	Name string `yaml:"name"`
 	// Match is a Go regular expression tested (unanchored) against the latest
 	// user message of each request that is not an injected <system-reminder>.
 	Match string `yaml:"match"`
+	// Model, when non-empty, constrains this scenario to requests whose model
+	// field matches exactly. Requests with a different model skip this scenario.
+	Model string `yaml:"model"`
 	// Turns are the scripted assistant responses, indexed by the number of
 	// assistant messages following the matched user message.
 	Turns []Turn `yaml:"turns"`
@@ -239,6 +243,9 @@ func (f *ScenarioFile) resolve(req *CreateChatCompletionRequest) (string, int, T
 
 	for i := range f.Scenarios {
 		sc := &f.Scenarios[i]
+		if sc.Model != "" && sc.Model != req.Model {
+			continue
+		}
 		if !sc.re.MatchString(prompt) {
 			continue
 		}
@@ -268,7 +275,7 @@ func (f *ScenarioFile) resolveMessages(req *CreateMessagesRequest) (string, int,
 		}
 		projected = append(projected, Message{Role: role, Content: Text(text)})
 	}
-	return f.resolve(&CreateChatCompletionRequest{Messages: projected})
+	return f.resolve(&CreateChatCompletionRequest{Model: req.Model, Messages: projected})
 }
 
 // messagesText extracts the concatenated text of an Anthropic message

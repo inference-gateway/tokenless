@@ -30,6 +30,7 @@ fallback:
 scenarios:
   - name: write-approved # required, unique
     match: '(?i)create a file named approved\.txt' # Go regex, unanchored
+    model: gpt-4o       # optional: only match requests for this model
     turns:
       - tool_calls:
           - { name: Write, args: { file_path: "approved.txt", content: "hi" } }
