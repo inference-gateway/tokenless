@@ -30,8 +30,8 @@ func TestStandaloneBinary(t *testing.T) {
 	stdout, err := cmd.StdoutPipe()
 	require.NoError(t, err)
 	require.NoError(t, cmd.Start())
-	defer cmd.Process.Kill()
 	defer cmd.Wait()
+	defer cmd.Process.Kill()
 
 	// Read the "tokenless listening on http://..." line.
 	urlCh := make(chan string, 1)
