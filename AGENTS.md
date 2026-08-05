@@ -92,15 +92,17 @@ Examples:
 - Description includes a **Summary** (2–4 sentences) and a **Changes** bullet list.
 - A human reviews and merges — do not self-merge.
 
-## Git Hooks
+## Pre-commit Hook
 
-This repo ships git hooks under `.githooks/` that run `gofmt`, `go vet`, and `go test` before every commit **and** every push. To activate them:
+This repo ships a `.githooks/pre-commit` hook that runs `gofmt`, `go vet`, and `go test` before every commit. To activate it:
 
 ```bash
 git config core.hooksPath .githooks
 ```
 
-The hooks are inert until you run that command. Once set, `git commit` and `git push` will refuse if formatting, vet, or tests fail. The hooks run against the root module only (not `examples/`), keeping it fast for day-to-day work.
+The hook is inert until you run that command. Once set, `git commit` will refuse if formatting, vet, or tests fail. The hook runs against the root module only (not `examples/`), keeping it fast for day-to-day work.
+
+**Agents:** run `git config core.hooksPath .githooks` at the start of every task to activate the pre-commit hook.
 
 ## Agent Skills
 
