@@ -102,6 +102,8 @@ git config core.hooksPath .githooks
 
 The hook is inert until you run that command. Once set, `git commit` will refuse if formatting, vet, or tests fail. The hook runs against the root module only (not `examples/`), keeping it fast for day-to-day work.
 
+**Agents:** run `git config core.hooksPath .githooks` at the start of every task to activate the pre-commit hook.
+
 ## Agent Skills
 
 The `.agents/skills/` directory contains reusable skill definitions for agent workflows. The `tokenless` skill documents how to test LLM agents against the mock gateway. Skills are loaded by the agent runtime and provide structured instructions for common tasks.
