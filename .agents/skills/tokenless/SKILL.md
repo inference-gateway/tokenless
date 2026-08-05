@@ -65,26 +65,27 @@ Turn fields:
 A commented reference file lives at `examples/scenarios.yaml`; the built-in
 library is `gateway/scenarios.yaml`.
 
-## Go tests: the harness package
+## Go tests: the tokenless package
 
-`github.com/inference-gateway/tokenless/harness` — the full worked example is
+`github.com/inference-gateway/tokenless` — the full worked example is
 `examples/cobra-agent/`.
 
 ```go
 func TestMain(m *testing.M) {
-    bin, cleanup, err := harness.BuildBinary(repoRoot(), "MYAPP_E2E_BINARY") // env var reuses a prebuilt binary
+    bin, cleanup, err := tokenless.BuildBinary(repoRoot(), "MYAPP_E2E_BINARY") // env var reuses a prebuilt binary
     ...
 }
 
 func TestApprovedWrite(t *testing.T) {
-    _, url := harness.StartMock(t) // built-in scenarios; pass gateway.LoadFile(...) results for your own
-    res := harness.App{Bin: bin, Dir: t.TempDir(), Env: map[string]string{"MYAPP_GATEWAY_URL": url}}.
+    mock := tokenless.StartMock(t) // built-in scenarios; pass gateway.LoadFile(...) results for your own
+    res := tokenless.Orchestrator{Bin: bin, Dir: t.TempDir(), Env: map[string]string{"MYAPP_GATEWAY_URL": mock.URL}}.
         Run(t, "run", "--prompt", "create a file named approved.txt")
     // res.Stdout, res.Stderr, res.ExitCode
+    mock.AssertExpectations(t)
 }
 ```
 
-`App.Run` executes the binary as a subprocess with a hermetic env (temp HOME).
+`Orchestrator.Run` executes the binary as a subprocess with a hermetic env (temp HOME).
 NDJSON output helpers: `JSONLines(t, stdout)`, `ContentsByRole(lines, role)`,
 `StatusOfType(lines, typ)`, `ToolMessages(body)`, `WriteFixtures(t, dir, names...)`.
 tmux TUI drivers: `CapturePane(session)`, `SendKeys(t, session, keys...)`,
