@@ -71,7 +71,7 @@ jobs:
         with:
           go-version: stable
 
-      - uses: inference-gateway/infer-action@v0.45.0
+      - uses: inference-gateway/infer-action@v0.48.1
         with:
           debug: true
           github-token: ${{ steps.app-token.outputs.token }}
