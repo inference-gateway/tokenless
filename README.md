@@ -143,15 +143,15 @@ thing.
 
 **Already have an app built on an official client SDK?** Nothing changes in
 your code - construct the client with its base URL pointed at the mock. See
-[examples/clients](examples/clients) for runnable programs using the
-[official OpenAI Go client](examples/clients/openai/main.go) (sync and
+[examples](examples) for runnable programs using the
+[official OpenAI Go client](examples/01-openai-client/main_test.go) (sync and
 streaming) and the
-[inference-gateway Go SDK](examples/clients/sdk/main.go).
+[inference-gateway Go SDK](examples/03-sdk-client/main_test.go).
 
 **Testing a CLI end to end?**
-[examples/cobra-agent](examples/cobra-agent) is a complete worked example: a
+[examples/00-cobra-agent](examples/00-cobra-agent) is a complete worked example: a
 small [cobra](https://github.com/spf13/cobra) CLI whose gateway URL comes from
-an environment variable, and a [test](examples/cobra-agent/main_test.go) that
+an environment variable, and a [test](examples/00-cobra-agent/main_test.go) that
 builds the real binary once (`tokenless.BuildBinary` in `TestMain`), starts the
 mock (`tokenless.StartMock`), runs the binary as a subprocess
 (`tokenless.Orchestrator{...}.Run`), and asserts on its stdout and exit code - including
