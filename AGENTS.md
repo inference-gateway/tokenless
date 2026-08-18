@@ -6,10 +6,9 @@
 ./
 ├── cmd/tokenless/          # Standalone binary entry point
 ├── examples/               # Runnable examples (separate Go module)
-│   ├── clients/            # SDK client examples (openai, anthropic, sdk)
-│   └── cobra-agent/        # End-to-end cobra CLI example with tests
+│   ├── 00-cobra-agent/     # End-to-end cobra CLI example with tests
+│   └── ...                  # Numbered subdirectories for each example
 ├── gateway/                # Core library: HTTP server, scenario engine, wire types
-├── harness/                # Go test helpers: BuildBinary, App.Run, tmux drivers
 ├── .agents/skills/         # Agent skills (e.g. tokenless skill for testing)
 ├── .github/workflows/      # CI and task automation
 ├── AGENTS.md               # This file
@@ -20,12 +19,12 @@
 **Packages:**
 
 - `gateway` — the HTTP server, scenario parser/validator (`Load`, `LoadFile`, `Default`), hand-written wire types, and the embedded default scenario library. Zero dependencies beyond `gopkg.in/yaml.v3`.
-- `harness` — Go test helpers: `BuildBinary` (build once in `TestMain`), `App`/`App.Run` (hermetic subprocess runs), `JSONLines`/`ContentsByRole`/`StatusOfType` (NDJSON assertions), and tmux TUI drivers (`SendKeys`, `CapturePane`, `WaitForPane`).
+- `tokenless` (root) — Go test helpers: `BuildBinary` (build once in `TestMain`), `Orchestrator`/`Orchestrator.Run` (hermetic subprocess runs), `JSONLines`/`ContentsByRole`/`StatusOfType` (NDJSON assertions), tmux TUI drivers (`SendKeys`, `CapturePane`, `WaitForPane`), and `ToolLoop` for multi-turn tool-invocation tests.
 - `cmd/tokenless` — the standalone binary.
 
 ## Build, Test, and Dev Commands
 
-This project uses plain Go tooling — no Makefile, no Taskfile.
+This project uses plain Go tooling. A convenience `Taskfile.yml` is also available for common commands when `task` is installed (`go install github.com/go-task/task/v3/cmd/task@latest`).
 
 ```bash
 # Build everything
@@ -78,11 +77,11 @@ go run ./cmd/tokenless --port 8080 --scenarios gateway/scenarios.yaml
 ```
 
 Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`.
-Scope is the package or area (e.g. `gateway`, `harness`, `cmd/tokenless`).
+Scope is the package or area (e.g. `gateway`, `tokenless`, `cmd/tokenless`).
 
 Examples:
 - `feat(gateway): add Anthropic /v1/messages endpoint`
-- `fix(harness): handle empty stdout in JSONLines`
+- `fix(tokenless): handle empty stdout in JSONLines`
 - `docs: add scenario format examples`
 
 **Pull Requests:**
