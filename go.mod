@@ -1,6 +1,6 @@
 module github.com/inference-gateway/tokenless
 
-go 1.26.4
+go 1.26.7
 
 require (
 	github.com/stretchr/testify v1.12.1

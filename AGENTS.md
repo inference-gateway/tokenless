@@ -12,7 +12,7 @@
 ├── .agents/skills/         # Agent skills (e.g. tokenless skill for testing)
 ├── .github/workflows/      # CI and task automation
 ├── AGENTS.md               # This file
-├── go.mod / go.sum         # Root module (Go 1.26.4)
+├── go.mod / go.sum         # Root module (Go 1.26.7)
 └── README.md               # Project overview and usage
 ```
 
@@ -58,7 +58,7 @@ go run ./cmd/tokenless --port 8080 --scenarios gateway/scenarios.yaml
 
 ## Coding Style
 
-- **Language:** Go 1.26.4, idiomatic standard library usage.
+- **Language:** Go 1.26.7, idiomatic standard library usage.
 - **Formatting:** `gofmt` — no exceptions. CI rejects unformatted code.
 - **Imports:** Standard library first, then third-party, grouped by blank line.
 - **Testing:** Use `github.com/stretchr/testify/require` for assertions. Table-driven tests with `t.Run` subtrees. Test helpers use `t.Helper()`.
