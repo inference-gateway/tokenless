@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.1](https://github.com/inference-gateway/tokenless/compare/v0.6.0...v0.6.1) (2026-09-04)
+
+### 📚 Documentation
+
+* fix documentation drift between docs and code ([#40](https://github.com/inference-gateway/tokenless/issues/40)) ([9622786](https://github.com/inference-gateway/tokenless/commit/96227869a88ebc79cedf773bb655e691a62335c1))
+
+### 🔧 Miscellaneous
+
+* **deps:** bump github.com/anthropics/anthropic-sdk-go in /examples ([#37](https://github.com/inference-gateway/tokenless/issues/37)) ([fe07c9c](https://github.com/inference-gateway/tokenless/commit/fe07c9ca891d1b38362e448a6142517e88cc3652))
+* **deps:** bump github.com/anthropics/anthropic-sdk-go in /examples ([#46](https://github.com/inference-gateway/tokenless/issues/46)) ([1855d83](https://github.com/inference-gateway/tokenless/commit/1855d8382977151f60cfb6cda5d480d5c569746f))
+* **deps:** bump github.com/inference-gateway/sdk in /examples ([#34](https://github.com/inference-gateway/tokenless/issues/34)) ([263ae1c](https://github.com/inference-gateway/tokenless/commit/263ae1c07b7df46f990ed8e94afe8a520b606bba))
+* **deps:** bump github.com/openai/openai-go/v3 in /examples ([#35](https://github.com/inference-gateway/tokenless/issues/35)) ([8123581](https://github.com/inference-gateway/tokenless/commit/81235814cde0928361cc2b40ba94e42b53542481))
+* **deps:** bump github.com/openai/openai-go/v3 in /examples ([#47](https://github.com/inference-gateway/tokenless/issues/47)) ([b3947ea](https://github.com/inference-gateway/tokenless/commit/b3947ea2a68e8cfa23d7b1f904a8394905680f48))
+* **deps:** bump github.com/stretchr/testify from 1.11.1 to 1.12.0 ([#36](https://github.com/inference-gateway/tokenless/issues/36)) ([c62d398](https://github.com/inference-gateway/tokenless/commit/c62d398476f18000fd70d7d06e1dadbd36c572b2))
+* **deps:** bump github.com/stretchr/testify from 1.12.0 to 1.12.1 ([#42](https://github.com/inference-gateway/tokenless/issues/42)) ([35764a1](https://github.com/inference-gateway/tokenless/commit/35764a1bce9d07801a602dd5af4ffcb5cf01890c))
+* **deps:** bump github.com/stretchr/testify in /examples ([#43](https://github.com/inference-gateway/tokenless/issues/43)) ([27df458](https://github.com/inference-gateway/tokenless/commit/27df458efa3a84339fbcf25428d4f5c51e633ff3))
+* **deps:** bump Go toolchain to 1.26.7 and pin tasks CI to go.mod ([#49](https://github.com/inference-gateway/tokenless/issues/49)) ([394c436](https://github.com/inference-gateway/tokenless/commit/394c4363e3491ea7ce5f21a5fc20674f0f1e2114))
+* **deps:** bump infer-action to v0.48.1 ([#41](https://github.com/inference-gateway/tokenless/issues/41)) ([593dcd2](https://github.com/inference-gateway/tokenless/commit/593dcd214d26b80d78a4beff7c8bc7f02f6eb162))
+
 ## [0.6.0](https://github.com/inference-gateway/tokenless/compare/v0.5.0...v0.6.0) (2026-08-05)
 
 ### ✨ Features
