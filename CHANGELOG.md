@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.2](https://github.com/inference-gateway/tokenless/compare/v0.6.1...v0.6.2) (2026-09-16)
+
+### 🔧 Miscellaneous
+
+* **deps:** bump github.com/anthropics/anthropic-sdk-go in /examples ([#54](https://github.com/inference-gateway/tokenless/issues/54)) ([de73600](https://github.com/inference-gateway/tokenless/commit/de736004cff62c8efa1258eb10055b992ba42e4a))
+* **deps:** bump github.com/inference-gateway/sdk in /examples ([#51](https://github.com/inference-gateway/tokenless/issues/51)) ([bbbf781](https://github.com/inference-gateway/tokenless/commit/bbbf78124527472fed76b92d83fab0afb0461f4e))
+* **deps:** bump github.com/openai/openai-go/v3 in /examples ([#53](https://github.com/inference-gateway/tokenless/issues/53)) ([50fc437](https://github.com/inference-gateway/tokenless/commit/50fc437964f0e0c96327459fd2ac3e79107d00e3))
+
 ## [0.6.1](https://github.com/inference-gateway/tokenless/compare/v0.6.0...v0.6.1) (2026-09-04)
 
 ### 📚 Documentation
