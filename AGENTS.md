@@ -12,7 +12,7 @@ Tokenless is a deterministic mock LLM gateway for testing agents without API cal
 
 ## Build, test, lint
 
-The root module has a Taskfile (`task` runs fmt, vet, build, test; `task test` adds `-race`). CI (`.github/workflows/ci.yml`) runs exactly:
+The root module has a Taskfile (`task` runs fmt, vet, build, test; `task test` adds `-race`; install `task` via `go install github.com/go-task/task/v3/cmd/task@latest`). CI (`.github/workflows/ci.yml`) runs exactly:
 
 ```bash
 gofmt -l . && test -z "$(gofmt -l .)"
@@ -25,7 +25,7 @@ Try the binary: `go run ./cmd/tokenless --port 8080 --scenarios gateway/scenario
 
 ## Code style
 
-- Go 1.26.4; `gofmt` with no exceptions; `go vet` clean.
+- Go 1.26.7; `gofmt` with no exceptions; `go vet` clean.
 - testify `require` for assertions; table-driven tests with `t.Run`; helpers call `t.Helper()`.
 - Wire types are hand-written and minimal — only fields the mock reads or writes; JSON tags follow the OpenAI/Anthropic wire formats plus gateway extensions.
 - Return errors from internal functions; `log.Fatal` only in `main()`; panic only in `gateway.Default()` when embedded scenarios are invalid (a build-time invariant).
@@ -37,7 +37,7 @@ Scenario selection matches the regex against the first user message only; turns 
 
 ## Commits & PRs
 
-Releases are automated by semantic-release from commit history, so commits must follow [Conventional Commits](https://www.conventionalcommits.org/): `<type>(<scope>): <description>` with scope = area (`gateway`, `tool_loop`, `cmd/tokenless`). PRs: open as draft, mark ready when CI passes; a human merges — do not self-merge.
+Releases are automated by semantic-release from commit history, so commits must follow [Conventional Commits](https://www.conventionalcommits.org/): `<type>(<scope>): <description>` with scope = area (`gateway`, `tool_loop`, `tokenless`, `cmd/tokenless`). PRs: open as draft, mark ready when CI passes; a human merges — do not self-merge.
 
 Activate the pre-commit hook at the start of every task:
 
