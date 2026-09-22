@@ -20,7 +20,7 @@ the test expects — no API keys, no tokens, no nondeterminism.
 
 Endpoints: `POST /v1/chat/completions` (sync + SSE), `POST /v1/messages`          
 (Anthropic SSE), `POST /v1/images/generations` and `/v1/images/edits` (canned     
-1x1 PNG), `POST /v1/audio/music` (canned MP3), `POST /v1/audio/sfx` (canned WAV), 
+1x1 PNG), `POST /v1/audio/music` and `POST /v1/audio/sfx` (canned clip following `response_format`: `mp3` default, `wav`, headerless `pcm`; unsupported formats get a 400), 
 `GET /v1/models`, `GET /v1/health`.
 
 ## scenarios.yaml
