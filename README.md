@@ -95,8 +95,9 @@ scenarios:
 | `POST /v1/messages`                                   | Anthropic-native: thinking/text/tool_use blocks, `input_json_delta` fragments, cache-aware usage            |
 | `POST /v1/images/generations`, `POST /v1/images/edits`| Canned 1x1 PNG so decode-and-save paths run end to end                                                     | 
 | `POST /v1/audio/music`                                | Canned clip covering `duration_seconds` (default 1s), following `response_format`: `mp3` (default) MPEG 44.1 kHz 128 kbps mono silence, `pcm` the samples without the WAV header; `wav` and other formats → 400 (ElevenLabs cannot produce `wav` for sfx/music) | 
-| `POST /v1/audio/sfx`                                  | Same `response_format`-driven clip selection as `/v1/audio/music`                            | 
-| `GET /v1/models`                                      | Model list with pricing and context-window metadata                                                        |
+| `POST /v1/audio/sfx`                                  | Same `response_format`-driven clip selection as `/v1/audio/music`                            |                                                                                                                                                                    
+| `POST /v1/videos`, `GET /v1/videos/{id}`, `GET /v1/videos/{id}/content` | Videos API job lifecycle: create records the multipart form and returns a `queued` job; each poll advances `queued` → `in_progress` → `completed` (or `failed` via `videos.fail`); content serves a canned black-frame MP4 once `completed`, 404 before; scriptable via the top-level `videos:` block (`polls_until_complete`, `fail`, poll `error`/`stall`) | 
+| `GET /v1/models`                                      | Model list with pricing and context-window metadata                                                        |  
 | `GET /v1/expect`                                      | JSON report of recorded expectation failures; `200` when clean, `412` otherwise |
 | `GET /v1/health`                                      | `{"status":"ok"}`                                                                                          |
 
