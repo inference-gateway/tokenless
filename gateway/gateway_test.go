@@ -500,7 +500,7 @@ func TestMusicEndpoint(t *testing.T) {
 		{"honors duration_seconds", `{"model": "music_v2_5", "prompt": "lo-fi beats", "duration_seconds": 2.5, "instrumental": true, "response_format": "mp3"}`, http.StatusOK, "audio/mpeg", 96 * 417, "mp3"},
 		{"defaults to one second", `{"model": "music_v2_5", "prompt": "lo-fi beats"}`, http.StatusOK, "audio/mpeg", 39 * 417, ""},
 		{"non-positive duration defaults", `{"model": "music_v2_5", "prompt": "lo-fi beats", "duration_seconds": -3}`, http.StatusOK, "audio/mpeg", 39 * 417, ""},
-		{"wav", `{"model": "music_v2_5", "prompt": "lo-fi beats", "response_format": "wav"}`, http.StatusOK, "audio/wav", 88244, "wav"},
+		{"wav is rejected", `{"model": "music_v2_5", "prompt": "lo-fi beats", "response_format": "wav"}`, http.StatusBadRequest, "", 0, "wav"},
 		{"pcm is headerless", `{"model": "music_v2_5", "prompt": "lo-fi beats", "response_format": "pcm"}`, http.StatusOK, "audio/pcm", 88200, "pcm"},
 		{"opus is rejected", `{"model": "music_v2_5", "prompt": "lo-fi beats", "response_format": "opus"}`, http.StatusBadRequest, "", 0, "opus"},
 	}
@@ -527,12 +527,6 @@ func TestMusicEndpoint(t *testing.T) {
 						require.Equal(t, []byte{0xFF, 0xFB, 0x90, 0xC0}, frame[:4])
 						require.Equal(t, make([]byte, 413), frame[4:])
 					}
-				case "audio/wav":
-					require.Len(t, body, tt.wantLen)
-					require.Equal(t, []byte("RIFF"), body[0:4])
-					require.Equal(t, []byte("WAVE"), body[8:12])
-					require.Equal(t, []byte("data"), body[36:40])
-					require.Equal(t, make([]byte, tt.wantLen-44), body[44:])
 				case "audio/pcm":
 					require.Len(t, body, tt.wantLen)
 					require.Equal(t, make([]byte, tt.wantLen), body)
@@ -542,8 +536,8 @@ func TestMusicEndpoint(t *testing.T) {
 					Error string `json:"error"`
 				}
 				require.NoError(t, json.Unmarshal(body, &e))
-				require.Contains(t, e.Error, `response_format "opus"`)
-				require.Contains(t, e.Error, "supported formats: mp3, wav, pcm")
+				require.Contains(t, e.Error, `response_format "`+tt.wantFormat+`"`)
+				require.Contains(t, e.Error, "supported formats: mp3, pcm")
 			}
 
 			reqs := srv.Requests()
@@ -567,12 +561,13 @@ func TestSFXEndpoint(t *testing.T) {
 		wantLen    int
 		wantFormat string
 	}{
-		{"honors duration_seconds", `{"model": "elevenlabs/eleven_text_to_sound_v2", "prompt": "a fast whoosh", "duration_seconds": 2.5, "response_format": "wav"}`, http.StatusOK, "audio/wav", 220544, "wav"},
-		{"defaults to one second", `{"model": "elevenlabs/eleven_text_to_sound_v2", "prompt": "a fast whoosh", "response_format": "wav"}`, http.StatusOK, "audio/wav", 88244, "wav"},
-		{"non-positive duration defaults", `{"model": "elevenlabs/eleven_text_to_sound_v2", "prompt": "a fast whoosh", "duration_seconds": -3, "response_format": "wav"}`, http.StatusOK, "audio/wav", 88244, "wav"},
+		{"honors duration_seconds", `{"model": "elevenlabs/eleven_text_to_sound_v2", "prompt": "a fast whoosh", "duration_seconds": 2.5, "response_format": "mp3"}`, http.StatusOK, "audio/mpeg", 96 * 417, "mp3"},
+		{"defaults to one second", `{"model": "elevenlabs/eleven_text_to_sound_v2", "prompt": "a fast whoosh"}`, http.StatusOK, "audio/mpeg", 39 * 417, ""},
+		{"non-positive duration defaults", `{"model": "elevenlabs/eleven_text_to_sound_v2", "prompt": "a fast whoosh", "duration_seconds": -3}`, http.StatusOK, "audio/mpeg", 39 * 417, ""},
 		{"unset defaults to mp3", `{"model": "elevenlabs/eleven_text_to_sound_v2", "prompt": "a fast whoosh"}`, http.StatusOK, "audio/mpeg", 39 * 417, ""},
 		{"mp3", `{"model": "elevenlabs/eleven_text_to_sound_v2", "prompt": "a fast whoosh", "response_format": "mp3"}`, http.StatusOK, "audio/mpeg", 39 * 417, "mp3"},
 		{"pcm is headerless", `{"model": "elevenlabs/eleven_text_to_sound_v2", "prompt": "a fast whoosh", "response_format": "pcm"}`, http.StatusOK, "audio/pcm", 88200, "pcm"},
+		{"wav is rejected", `{"model": "elevenlabs/eleven_text_to_sound_v2", "prompt": "a fast whoosh", "response_format": "wav"}`, http.StatusBadRequest, "", 0, "wav"},
 		{"opus is rejected", `{"model": "elevenlabs/eleven_text_to_sound_v2", "prompt": "a fast whoosh", "response_format": "opus"}`, http.StatusBadRequest, "", 0, "opus"},
 	}
 	for _, tt := range tests {
@@ -598,12 +593,6 @@ func TestSFXEndpoint(t *testing.T) {
 						require.Equal(t, []byte{0xFF, 0xFB, 0x90, 0xC0}, frame[:4])
 						require.Equal(t, make([]byte, 413), frame[4:])
 					}
-				case "audio/wav":
-					require.Len(t, body, tt.wantLen)
-					require.Equal(t, []byte("RIFF"), body[0:4])
-					require.Equal(t, []byte("WAVE"), body[8:12])
-					require.Equal(t, []byte("data"), body[36:40])
-					require.Equal(t, make([]byte, tt.wantLen-44), body[44:])
 				case "audio/pcm":
 					require.Len(t, body, tt.wantLen)
 					require.Equal(t, make([]byte, tt.wantLen), body)
@@ -613,8 +602,8 @@ func TestSFXEndpoint(t *testing.T) {
 					Error string `json:"error"`
 				}
 				require.NoError(t, json.Unmarshal(body, &e))
-				require.Contains(t, e.Error, `response_format "opus"`)
-				require.Contains(t, e.Error, "supported formats: mp3, wav, pcm")
+				require.Contains(t, e.Error, `response_format "`+tt.wantFormat+`"`)
+				require.Contains(t, e.Error, "supported formats: mp3, pcm")
 			}
 
 			reqs := srv.Requests()
