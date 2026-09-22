@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.0](https://github.com/inference-gateway/tokenless/compare/v0.7.0...v0.8.0) (2026-09-22)
+
+### ✨ Features
+
+* **gateway:** serve POST /v1/audio/sfx with a canned WAV clip ([#63](https://github.com/inference-gateway/tokenless/issues/63)) ([3612978](https://github.com/inference-gateway/tokenless/commit/36129782a9c83123ea46ad7f4be75b5183f5ef0f))
+
 ## [0.7.0](https://github.com/inference-gateway/tokenless/compare/v0.6.2...v0.7.0) (2026-09-22)
 
 ### ✨ Features
