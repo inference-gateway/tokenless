@@ -95,6 +95,7 @@ scenarios:
 | `POST /v1/messages`                                   | Anthropic-native: thinking/text/tool_use blocks, `input_json_delta` fragments, cache-aware usage            |
 | `POST /v1/images/generations`, `POST /v1/images/edits`| Canned 1x1 PNG so decode-and-save paths run end to end                                                     | 
 | `POST /v1/audio/music`                                | Canned MP3 (44.1 kHz 128 kbps mono silence) covering `duration_seconds`, default 1s                         | 
+| `POST /v1/audio/sfx`                                  | Canned WAV (44.1 kHz 16-bit mono silence) covering `duration_seconds`, default 1s                           | 
 | `GET /v1/models`                                      | Model list with pricing and context-window metadata                                                        |
 | `GET /v1/expect`                                      | JSON report of recorded expectation failures; `200` when clean, `412` otherwise |
 | `GET /v1/health`                                      | `{"status":"ok"}`                                                                                          |

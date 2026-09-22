@@ -2,7 +2,7 @@
 // API surface agent apps consume: GET /v1/models, POST /v1/chat/completions
 // (sync JSON and SSE streaming), POST /v1/messages (Anthropic-native),
 // POST /v1/images/generations and /v1/images/edits, POST /v1/audio/music,
-// and GET /v1/health.
+// POST /v1/audio/sfx, and GET /v1/health.
 //
 // Scenario resolution is stateless: every request carries the full message
 // history, so the scenario is chosen by matching each scenario's regex
@@ -14,6 +14,7 @@ package gateway
 
 import (
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -76,6 +77,8 @@ type Recorded struct {
 	ImagesBody *CreateImageRequest
 	// MusicBody is the full decoded request for /v1/audio/music.
 	MusicBody *CreateMusicRequest
+	// SFXBody is the full decoded request for /v1/audio/sfx.
+	SFXBody *CreateSFXRequest
 	// RawBody is the request body verbatim, so apps can decode it with their
 	// own richer types when the minimal ones above are not enough.
 	RawBody json.RawMessage
@@ -173,6 +176,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.handleImages(w, r)
 	case r.Method == http.MethodPost && r.URL.Path == "/v1/audio/music":
 		s.handleMusic(w, r)
+	case r.Method == http.MethodPost && r.URL.Path == "/v1/audio/sfx":
+		s.handleSFX(w, r)
 	case r.Method == http.MethodGet && r.URL.Path == "/v1/expect":
 		s.handleExpect(w, r)
 	case r.Method == http.MethodGet && r.URL.Path == "/v1/health":
@@ -588,6 +593,63 @@ func mp3Clip(durationSeconds *float32) []byte {
 	frame := make([]byte, frameLen)
 	frame[0], frame[1], frame[2], frame[3] = 0xFF, 0xFB, 0x90, 0xC0
 	return slices.Repeat(frame, int(math.Ceil(secs*sampleRate/samplesPerFrame)))
+}
+
+// handleSFX answers POST /v1/audio/sfx with a canned WAV clip - silence as
+// 16-bit mono 44.1 kHz PCM - so sound-effect tools run their save-to-disk
+// path end to end without a real provider. The request is recorded like a
+// completion, so tests can assert the model, prompt and requested format.
+func (s *Server) handleSFX(w http.ResponseWriter, r *http.Request) {
+	raw, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, `{"error":"reading request body"}`, http.StatusBadRequest)
+		return
+	}
+	var req CreateSFXRequest
+	if err := json.Unmarshal(raw, &req); err != nil {
+		http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+		return
+	}
+
+	s.mu.Lock()
+	s.reqs = append(s.reqs, Recorded{
+		Endpoint: r.URL.Path,
+		Provider: r.URL.Query().Get("provider"),
+		Model:    req.Model,
+		SFXBody:  &req,
+		RawBody:  raw,
+	})
+	s.mu.Unlock()
+
+	w.Header().Set("Content-Type", "audio/wav")
+	_, _ = w.Write(wavClip(req.DurationSeconds))
+}
+
+// wavClip renders silence as a canonical 44-byte-header 16-bit mono 44.1 kHz
+// PCM WAV covering durationSeconds; nil or non-positive means 1s. The data
+// section is left zeroed (silence).
+func wavClip(durationSeconds *float32) []byte {
+	const sampleRate = 44100
+	secs := 1.0
+	if durationSeconds != nil && *durationSeconds > 0 {
+		secs = float64(*durationSeconds)
+	}
+	dataLen := uint32(math.Ceil(secs*sampleRate)) * 2
+	b := make([]byte, 44+int(dataLen))
+	copy(b, "RIFF")
+	binary.LittleEndian.PutUint32(b[4:], 36+dataLen)
+	copy(b[8:], "WAVE")
+	copy(b[12:], "fmt ")
+	binary.LittleEndian.PutUint32(b[16:], 16)
+	binary.LittleEndian.PutUint16(b[20:], 1)
+	binary.LittleEndian.PutUint16(b[22:], 1)
+	binary.LittleEndian.PutUint32(b[24:], sampleRate)
+	binary.LittleEndian.PutUint32(b[28:], sampleRate*2)
+	binary.LittleEndian.PutUint16(b[32:], 2)
+	binary.LittleEndian.PutUint16(b[34:], 16)
+	copy(b[36:], "data")
+	binary.LittleEndian.PutUint32(b[40:], dataLen)
+	return b
 }
 
 func writeJSON(w http.ResponseWriter, v any) {

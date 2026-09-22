@@ -18,9 +18,10 @@ OpenAI-compatible API and Anthropic's Messages API. The agent under test runs
 its real tool/approval/output pipeline against a "model" that says exactly what
 the test expects — no API keys, no tokens, no nondeterminism.
 
-Endpoints: `POST /v1/chat/completions` (sync + SSE), `POST /v1/messages`
-(Anthropic SSE), `POST /v1/images/generations` and `/v1/images/edits` (canned
-1x1 PNG), `POST /v1/audio/music` (canned MP3), `GET /v1/models`, `GET /v1/health`.
+Endpoints: `POST /v1/chat/completions` (sync + SSE), `POST /v1/messages`          
+(Anthropic SSE), `POST /v1/images/generations` and `/v1/images/edits` (canned     
+1x1 PNG), `POST /v1/audio/music` (canned MP3), `POST /v1/audio/sfx` (canned WAV), 
+`GET /v1/models`, `GET /v1/health`.
 
 ## scenarios.yaml
 

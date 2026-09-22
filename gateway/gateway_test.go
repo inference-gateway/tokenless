@@ -527,3 +527,45 @@ func TestMusicEndpoint(t *testing.T) {
 		})
 	}
 }
+
+func TestSFXEndpoint(t *testing.T) {
+	tests := []struct {
+		name    string
+		body    string
+		wantLen int
+	}{
+		{"honors duration_seconds", `{"model": "elevenlabs/eleven_text_to_sound_v2", "prompt": "a fast whoosh", "duration_seconds": 2.5, "response_format": "wav"}`, 220544},
+		{"defaults to one second", `{"model": "elevenlabs/eleven_text_to_sound_v2", "prompt": "a fast whoosh"}`, 88244},
+		{"non-positive duration defaults", `{"model": "elevenlabs/eleven_text_to_sound_v2", "prompt": "a fast whoosh", "duration_seconds": -3}`, 88244},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := New(Default())
+			ts := httptest.NewServer(srv)
+			defer ts.Close()
+
+			resp, err := http.Post(ts.URL+"/v1/audio/sfx", "application/json", strings.NewReader(tt.body))
+			require.NoError(t, err)
+			body, err := io.ReadAll(resp.Body)
+			_ = resp.Body.Close()
+			require.NoError(t, err)
+			require.Equal(t, http.StatusOK, resp.StatusCode)
+			require.Equal(t, "audio/wav", resp.Header.Get("Content-Type"))
+
+			require.Len(t, body, tt.wantLen)
+			require.Equal(t, []byte("RIFF"), body[0:4])
+			require.Equal(t, []byte("WAVE"), body[8:12])
+			require.Equal(t, []byte("data"), body[36:40])
+			require.Equal(t, make([]byte, tt.wantLen-44), body[44:])
+
+			reqs := srv.Requests()
+			require.Len(t, reqs, 1)
+			require.Equal(t, "/v1/audio/sfx", reqs[0].Endpoint)
+			require.Equal(t, "elevenlabs/eleven_text_to_sound_v2", reqs[0].Model)
+			require.Equal(t, "a fast whoosh", reqs[0].SFXBody.Prompt)
+			if reqs[0].SFXBody.ResponseFormat != nil {
+				require.Equal(t, "wav", *reqs[0].SFXBody.ResponseFormat)
+			}
+		})
+	}
+}
