@@ -544,9 +544,10 @@ func (s *Server) handleImages(w http.ResponseWriter, r *http.Request) {
 const onePixelPNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk" +
 	"YPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
 
-// handleMusic answers POST /v1/audio/music with a canned MP3 clip - silence
-// as MPEG-1 Layer III frames (44.1 kHz, 128 kbps, mono) - so music tools run
-// their save-to-disk path end to end without a real provider.
+// handleMusic answers POST /v1/audio/music with a canned audio clip selected
+// by response_format (mp3 unless the request says otherwise, see
+// writeAudioClip) so music tools run their save-to-disk path end to end
+// without a real provider.
 // duration_seconds (default 1s) drives the frame count, so a client can read
 // the duration back as frames × 1152 / 44100. The request is recorded like a
 // completion, so tests can assert the model, prompt, instrumental flag and
@@ -573,8 +574,7 @@ func (s *Server) handleMusic(w http.ResponseWriter, r *http.Request) {
 	})
 	s.mu.Unlock()
 
-	w.Header().Set("Content-Type", "audio/mpeg")
-	_, _ = w.Write(mp3Clip(req.DurationSeconds))
+	writeAudioClip(w, req.Model, req.ResponseFormat, req.DurationSeconds)
 }
 
 // mp3Clip renders silence as identical MPEG-1 Layer III frames (44.1 kHz,
@@ -595,10 +595,11 @@ func mp3Clip(durationSeconds *float32) []byte {
 	return slices.Repeat(frame, int(math.Ceil(secs*sampleRate/samplesPerFrame)))
 }
 
-// handleSFX answers POST /v1/audio/sfx with a canned WAV clip - silence as
-// 16-bit mono 44.1 kHz PCM - so sound-effect tools run their save-to-disk
-// path end to end without a real provider. The request is recorded like a
-// completion, so tests can assert the model, prompt and requested format.
+// handleSFX answers POST /v1/audio/sfx with a canned audio clip selected by
+// response_format (mp3 unless the request says otherwise, see writeAudioClip)
+// so sound-effect tools run their save-to-disk path end to end without a real
+// provider. The request is recorded like a completion, so tests can assert
+// the model, prompt and requested format.
 func (s *Server) handleSFX(w http.ResponseWriter, r *http.Request) {
 	raw, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -621,8 +622,7 @@ func (s *Server) handleSFX(w http.ResponseWriter, r *http.Request) {
 	})
 	s.mu.Unlock()
 
-	w.Header().Set("Content-Type", "audio/wav")
-	_, _ = w.Write(wavClip(req.DurationSeconds))
+	writeAudioClip(w, req.Model, req.ResponseFormat, req.DurationSeconds)
 }
 
 // wavClip renders silence as a canonical 44-byte-header 16-bit mono 44.1 kHz
@@ -650,6 +650,32 @@ func wavClip(durationSeconds *float32) []byte {
 	copy(b[36:], "data")
 	binary.LittleEndian.PutUint32(b[40:], dataLen)
 	return b
+}
+
+// writeAudioClip writes the canned clip an audio endpoint serves, selected
+// by response_format: mp3 (or unset, the spec default) gets the MPEG clip,
+// wav the WAV clip, pcm the same samples with the RIFF header stripped, and
+// any other format a 400 naming it and the supported list. duration_seconds
+// drives the clip length in every format.
+func writeAudioClip(w http.ResponseWriter, model string, format *string, duration *float32) {
+	f := "mp3"
+	if format != nil {
+		f = *format
+	}
+	switch f {
+	case "mp3":
+		w.Header().Set("Content-Type", "audio/mpeg")
+		_, _ = w.Write(mp3Clip(duration))
+	case "wav":
+		w.Header().Set("Content-Type", "audio/wav")
+		_, _ = w.Write(wavClip(duration))
+	case "pcm":
+		w.Header().Set("Content-Type", "audio/pcm")
+		_, _ = w.Write(wavClip(duration)[44:])
+	default:
+		msg := fmt.Sprintf("%s does not support response_format %q, supported formats: mp3, wav, pcm", model, f)
+		http.Error(w, fmt.Sprintf(`{"error":%q}`, msg), http.StatusBadRequest)
+	}
 }
 
 func writeJSON(w http.ResponseWriter, v any) {
