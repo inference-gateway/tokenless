@@ -42,6 +42,47 @@ type ScenarioFile struct {
 	// Tools maps tool names to their exec definitions. Opt-in; without it
 	// behavior is unchanged (tool results come from whatever the client sends).
 	Tools map[string]*ToolDef `yaml:"tools,omitempty"`
+	// Videos, when set, scripts the mocked Videos API job lifecycle (poll
+	// count, failure outcome, poll error/stall injection). When nil the
+	// defaults apply.
+	Videos *VideoConfig `yaml:"videos,omitempty"`
+}
+
+// VideoConfig is the optional top-level `videos:` block scripting the mocked
+// Videos API job lifecycle.
+type VideoConfig struct {
+	// PollsUntilComplete is how many GET /v1/videos/{id} polls after
+	// creation complete (or fail) the job; 0 means 2, so a client that
+	// polls sees at least one non-terminal state before the terminal one.
+	PollsUntilComplete int `yaml:"polls_until_complete,omitempty"`
+	// Fail, when set, ends the job in failed with this error payload at
+	// the poll that would have completed it.
+	Fail *VideoFail `yaml:"fail,omitempty"`
+	// Error, when set, answers the first Times polls with this HTTP status
+	// without advancing the job (same shape as a turn's error).
+	Error *ErrorInject `yaml:"error,omitempty"`
+	// Stall, when set, hangs the first Times polls until the client
+	// disconnects (same shape as a turn's stall).
+	Stall *StallInject `yaml:"stall,omitempty"`
+}
+
+// VideoFail is the error payload a failed video job carries.
+type VideoFail struct {
+	Code    string `yaml:"code"`
+	Message string `yaml:"message"`
+}
+
+// defaultVideoPolls is the poll count that completes (or fails) a video job
+// when the scenario does not set polls_until_complete.
+const defaultVideoPolls = 2
+
+// pollsUntilComplete returns the configured poll count, defaulting to
+// defaultVideoPolls; nil-safe.
+func (c *VideoConfig) pollsUntilComplete() int {
+	if c != nil && c.PollsUntilComplete > 0 {
+		return c.PollsUntilComplete
+	}
+	return defaultVideoPolls
 }
 
 // Scenario is one scripted conversation, selected by regex and optionally
@@ -207,6 +248,26 @@ func (f *ScenarioFile) validate() error {
 	for name, def := range f.Tools {
 		if len(def.Exec) == 0 {
 			return fmt.Errorf("tool %q: exec is required", name)
+		}
+	}
+
+	if v := f.Videos; v != nil {
+		if v.PollsUntilComplete < 0 {
+			return fmt.Errorf("videos: polls_until_complete must be >= 0")
+		}
+		if v.Fail != nil && (v.Fail.Code == "" || v.Fail.Message == "") {
+			return fmt.Errorf("videos: fail.code and fail.message are required")
+		}
+		if v.Error != nil {
+			if !injectableStatuses[v.Error.Status] {
+				return fmt.Errorf("videos: error.status must be one of 408, 429, 500, 502, 503, 504")
+			}
+			if v.Error.Times == 0 || v.Error.Times < -1 {
+				return fmt.Errorf("videos: error.times must be positive or -1")
+			}
+		}
+		if v.Stall != nil && (v.Stall.Times == 0 || v.Stall.Times < -1) {
+			return fmt.Errorf("videos: stall.times must be positive or -1")
 		}
 	}
 

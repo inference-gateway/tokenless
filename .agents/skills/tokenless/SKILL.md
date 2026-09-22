@@ -21,6 +21,7 @@ the test expects — no API keys, no tokens, no nondeterminism.
 Endpoints: `POST /v1/chat/completions` (sync + SSE), `POST /v1/messages`          
 (Anthropic SSE), `POST /v1/images/generations` and `/v1/images/edits` (canned     
 1x1 PNG), `POST /v1/audio/music` and `POST /v1/audio/sfx` (canned clip following `response_format`: `mp3` default, headerless `pcm`; `wav` and other unsupported formats get a 400), 
+the Videos API job lifecycle (`POST /v1/videos`, `GET /v1/videos/{id}` — one lifecycle step per poll, `GET /v1/videos/{id}/content` — canned MP4 once `completed`, 404 before),
 `GET /v1/models`, `GET /v1/health`.
 
 ## scenarios.yaml
@@ -62,6 +63,11 @@ Turn fields:
 | `error`      | `{status, times}` — status one of 408/429/500/502/503/504; `times: -1` = forever |
 | `stall`      | `{times, connect}` — hang the response (or the connect) to test timeouts          |
 | `malformed`  | Emit invalid JSON to test parse-error handling                                    |
+
+A top-level `videos:` block scripts the Videos API job lifecycle:
+`polls_until_complete` (default 2), `fail: {code, message}` to end the job in
+`failed`, and poll-endpoint `error`/`stall` injection (same shapes as the turn
+fields; a failed poll consumes no lifecycle step).
 
 A commented reference file lives at `examples/scenarios.yaml`; the built-in
 library is `gateway/scenarios.yaml`.

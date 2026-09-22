@@ -3,12 +3,16 @@ package gateway
 import (
 	"bufio"
 	"bytes"
+	"context"
+	"encoding/binary"
 	"encoding/json"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -202,6 +206,11 @@ func TestLoadValidation(t *testing.T) {
 		{"retryable 400 rejected", "scenarios:\n  - {name: a, match: x, turns: [{error: {status: 400, times: 1}}]}\n", "error.status"},
 		{"zero times rejected", "scenarios:\n  - {name: a, match: x, turns: [{error: {status: 500, times: 0}}]}\n", "error.times"},
 		{"tool call needs name", "scenarios:\n  - {name: a, match: x, turns: [{tool_calls: [{args: {k: v}}]}]}\n", "name is required"},
+		{"videos negative polls", "videos: {polls_until_complete: -1}\n" + "scenarios:\n  - {name: a, match: x, turns: [{content: hi}]}\n", "polls_until_complete"},
+		{"videos bad error status", "videos: {error: {status: 400, times: 1}}\n" + "scenarios:\n  - {name: a, match: x, turns: [{content: hi}]}\n", "videos: error.status"},
+		{"videos zero error times", "videos: {error: {status: 503, times: 0}}\n" + "scenarios:\n  - {name: a, match: x, turns: [{content: hi}]}\n", "videos: error.times"},
+		{"videos bad stall times", "videos: {stall: {times: 0}}\n" + "scenarios:\n  - {name: a, match: x, turns: [{content: hi}]}\n", "videos: stall.times"},
+		{"videos fail incomplete", "videos: {fail: {code: x}}\n" + "scenarios:\n  - {name: a, match: x, turns: [{content: hi}]}\n", "fail.code"},
 	}
 
 	for _, tt := range tests {
@@ -616,4 +625,227 @@ func TestSFXEndpoint(t *testing.T) {
 			}
 		})
 	}
+}
+
+// postVideoForm posts a multipart /v1/videos form with one model and one
+// prompt field.
+func postVideoForm(t *testing.T, baseURL, model, prompt string) *http.Response {
+	t.Helper()
+	body := &bytes.Buffer{}
+	w := multipart.NewWriter(body)
+	require.NoError(t, w.WriteField("model", model))
+	require.NoError(t, w.WriteField("prompt", prompt))
+	require.NoError(t, w.Close())
+	resp, err := http.Post(baseURL+"/v1/videos", w.FormDataContentType(), body)
+	require.NoError(t, err)
+	return resp
+}
+
+// decodeVideoJob decodes and closes a VideoJob response.
+func decodeVideoJob(t *testing.T, resp *http.Response) VideoJob {
+	t.Helper()
+	var job VideoJob
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&job))
+	require.NoError(t, resp.Body.Close())
+	return job
+}
+
+// videoDefs builds a scenario file with an optional top-level videos block.
+func videoDefs(t *testing.T, videos string) *ScenarioFile {
+	t.Helper()
+	defs, err := Load([]byte(`fallback:
+  content: "Done."
+scenarios:
+  - name: anything
+    match: hi
+    turns:
+      - content: "Hello."
+` + videos))
+	require.NoError(t, err)
+	return defs
+}
+
+func TestVideoJobLifecycle(t *testing.T) {
+	srv := New(Default())
+	ts := httptest.NewServer(srv)
+	defer ts.Close()
+
+	// POST /v1/videos records the multipart form and returns a queued job.
+	body := &bytes.Buffer{}
+	w := multipart.NewWriter(body)
+	require.NoError(t, w.WriteField("model", "sora-2"))
+	require.NoError(t, w.WriteField("prompt", "a cat playing piano"))
+	require.NoError(t, w.WriteField("seconds", "4"))
+	require.NoError(t, w.WriteField("size", "720x720"))
+	for _, name := range []string{"input_reference", "audio"} {
+		fw, err := w.CreateFormFile(name, name+".bin")
+		require.NoError(t, err)
+		_, err = fw.Write([]byte("frame bytes"))
+		require.NoError(t, err)
+	}
+	require.NoError(t, w.Close())
+	resp, err := http.Post(ts.URL+"/v1/videos", w.FormDataContentType(), body)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	job := decodeVideoJob(t, resp)
+	require.Equal(t, "video", job.Object)
+	require.Equal(t, "video-job-1", job.ID)
+	require.Equal(t, VideoQueued, job.Status)
+	require.Equal(t, "sora-2", job.Model)
+	require.NotZero(t, job.CreatedAt)
+	require.Nil(t, job.CompletedAt)
+	require.Equal(t, "4", *job.Seconds)
+	require.Equal(t, "720x720", *job.Size)
+
+	// The creation is recorded, including the multipart field names.
+	reqs := srv.Requests()
+	require.Len(t, reqs, 1)
+	require.Equal(t, "/v1/videos", reqs[0].Endpoint)
+	require.Equal(t, "sora-2", reqs[0].Model)
+	require.Equal(t, "a cat playing piano", reqs[0].VideoBody.Prompt)
+	require.ElementsMatch(t,
+		[]string{"model", "prompt", "seconds", "size", "input_reference", "audio"},
+		reqs[0].VideoBody.Fields)
+
+	// Content is 404 until the job completes, and unknown ids 404.
+	contentURL := ts.URL + "/v1/videos/" + job.ID + "/content"
+	for _, path := range []string{"/v1/videos/" + job.ID + "/content", "/v1/videos/nope", "/v1/videos/nope/content"} {
+		resp, err = http.Get(ts.URL + path)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusNotFound, resp.StatusCode)
+		require.NoError(t, resp.Body.Close())
+	}
+
+	// Each poll advances the job one step.
+	pollURL := ts.URL + "/v1/videos/" + job.ID
+	resp, err = http.Get(pollURL)
+	require.NoError(t, err)
+	inProgress := decodeVideoJob(t, resp)
+	require.Equal(t, VideoInProgress, inProgress.Status)
+	require.Equal(t, 50, inProgress.Progress)
+	require.Nil(t, inProgress.CompletedAt)
+
+	resp, err = http.Get(contentURL)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusNotFound, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	resp, err = http.Get(pollURL)
+	require.NoError(t, err)
+	completed := decodeVideoJob(t, resp)
+	require.Equal(t, VideoCompleted, completed.Status)
+	require.Equal(t, 100, completed.Progress)
+	require.NotNil(t, completed.CompletedAt)
+
+	// Once completed the content endpoint serves the canned MP4.
+	resp, err = http.Get(contentURL)
+	require.NoError(t, err)
+	clip, err := io.ReadAll(resp.Body)
+	require.NoError(t, resp.Body.Close())
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.Equal(t, "video/mp4", resp.Header.Get("Content-Type"))
+	require.Equal(t, videoClip, clip)
+	require.Equal(t, "ftyp", string(clip[4:8]))
+
+	// The top-level MP4 boxes must tile the file exactly.
+	off := 0
+	for off < len(clip) {
+		size := int(binary.BigEndian.Uint32(clip[off:]))
+		if size <= 0 {
+			t.Fatalf("non-positive box size %d at offset %d", size, off)
+		}
+		off += size
+	}
+	require.Equal(t, len(clip), off)
+
+	// Poll and content requests are recorded, so tests can assert polling.
+	require.Len(t, srv.Requests(), 8)
+
+	// A second creation gets a unique id.
+	resp2 := postVideoForm(t, ts.URL, "sora-2", "another cat")
+	require.Equal(t, "video-job-2", decodeVideoJob(t, resp2).ID)
+}
+
+func TestVideoJobFailurePath(t *testing.T) {
+	defs := videoDefs(t, `videos:
+  polls_until_complete: 1
+  fail:
+    code: provider_error
+    message: "content policy"
+`)
+	srv := New(defs)
+	ts := httptest.NewServer(srv)
+	defer ts.Close()
+
+	resp := postVideoForm(t, ts.URL, "sora-2", "a dangerous prompt")
+	job := decodeVideoJob(t, resp)
+	require.Equal(t, VideoQueued, job.Status)
+
+	// The first poll fails the job with the configured error payload.
+	resp, err := http.Get(ts.URL + "/v1/videos/" + job.ID)
+	require.NoError(t, err)
+	failed := decodeVideoJob(t, resp)
+	require.Equal(t, VideoFailed, failed.Status)
+	require.NotNil(t, failed.Error)
+	require.Equal(t, "provider_error", failed.Error.Code)
+	require.Equal(t, "content policy", failed.Error.Message)
+	require.NotNil(t, failed.CompletedAt)
+
+	// A failed job never serves content.
+	resp, err = http.Get(ts.URL + "/v1/videos/" + job.ID + "/content")
+	require.NoError(t, err)
+	require.Equal(t, http.StatusNotFound, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+}
+
+func TestVideoPollErrorInjection(t *testing.T) {
+	defs := videoDefs(t, "videos:\n  error:\n    status: 503\n    times: 1\n")
+	srv := New(defs)
+	ts := httptest.NewServer(srv)
+	defer ts.Close()
+
+	job := decodeVideoJob(t, postVideoForm(t, ts.URL, "sora-2", "retry me"))
+
+	// The first poll gets the injected 503 and consumes no lifecycle step.
+	resp, err := http.Get(ts.URL + "/v1/videos/" + job.ID)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusServiceUnavailable, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	// A retrying client then walks the job through the normal lifecycle.
+	resp, err = http.Get(ts.URL + "/v1/videos/" + job.ID)
+	require.NoError(t, err)
+	require.Equal(t, VideoInProgress, decodeVideoJob(t, resp).Status)
+	resp, err = http.Get(ts.URL + "/v1/videos/" + job.ID)
+	require.NoError(t, err)
+	require.Equal(t, VideoCompleted, decodeVideoJob(t, resp).Status)
+
+	// The injected poll is recorded like any other.
+	require.Len(t, srv.Requests(), 4)
+	for i := 1; i < 4; i++ {
+		require.Equal(t, "/v1/videos/"+job.ID, srv.Requests()[i].Endpoint)
+	}
+}
+
+func TestVideoPollStall(t *testing.T) {
+	defs := videoDefs(t, "videos:\n  stall:\n    times: 1\n")
+	srv := New(defs)
+	ts := httptest.NewServer(srv)
+	defer ts.Close()
+
+	job := decodeVideoJob(t, postVideoForm(t, ts.URL, "sora-2", "hang on me"))
+
+	// The first poll hangs until the client times out.
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, ts.URL+"/v1/videos/"+job.ID, nil)
+	require.NoError(t, err)
+	_, err = http.DefaultClient.Do(req)
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+
+	// The stalled poll consumed no step; the next one advances normally.
+	resp, err := http.Get(ts.URL + "/v1/videos/" + job.ID)
+	require.NoError(t, err)
+	require.Equal(t, VideoInProgress, decodeVideoJob(t, resp).Status)
 }
