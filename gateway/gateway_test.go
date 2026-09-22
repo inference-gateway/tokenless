@@ -3,6 +3,7 @@ package gateway
 import (
 	"bufio"
 	"bytes"
+	"encoding/binary"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -486,4 +487,51 @@ func TestImagesEndpoints(t *testing.T) {
 	require.Equal(t, "/v1/images/edits", reqs[1].Endpoint)
 	require.Equal(t, "a red square", reqs[1].ImagesBody.Prompt)
 	require.Equal(t, "high", *reqs[1].ImagesBody.Quality)
+}
+
+func TestMusicEndpoint(t *testing.T) {
+	tests := []struct {
+		name     string
+		body     string
+		wantSecs float64
+	}{
+		{"honors duration_seconds", `{"model": "music_v2_5", "prompt": "lo-fi beats", "duration_seconds": 2.5, "instrumental": true, "response_format": "wav"}`, 2.5},
+		{"defaults to one second", `{"model": "music_v2_5", "prompt": "lo-fi beats"}`, 1},
+		{"non-positive duration defaults", `{"model": "music_v2_5", "prompt": "lo-fi beats", "duration_seconds": -3}`, 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := New(Default())
+			ts := httptest.NewServer(srv)
+			defer ts.Close()
+
+			resp, err := http.Post(ts.URL+"/v1/audio/music", "application/json", strings.NewReader(tt.body))
+			require.NoError(t, err)
+			body, err := io.ReadAll(resp.Body)
+			_ = resp.Body.Close()
+			require.NoError(t, err)
+			require.Equal(t, http.StatusOK, resp.StatusCode)
+			require.Equal(t, "audio/wav", resp.Header.Get("Content-Type"))
+
+			// WAV header: PCM 16-bit mono at 24 kHz with tt.wantSecs of silence.
+			require.Equal(t, "RIFF", string(body[:4]))
+			require.Equal(t, "WAVE", string(body[8:12]))
+			require.Equal(t, uint16(1), binary.LittleEndian.Uint16(body[20:]))     // PCM
+			require.Equal(t, uint16(1), binary.LittleEndian.Uint16(body[22:]))     // mono
+			require.Equal(t, uint32(24000), binary.LittleEndian.Uint32(body[24:])) // sample rate
+			require.Equal(t, uint16(16), binary.LittleEndian.Uint16(body[34:]))    // bits per sample
+			require.Equal(t, "data", string(body[36:40]))
+			dataLen := int(binary.LittleEndian.Uint32(body[40:]))
+			require.Equal(t, int(24000*2*tt.wantSecs), dataLen)
+			require.Equal(t, uint32(36+dataLen), binary.LittleEndian.Uint32(body[4:]))
+			require.Len(t, body, 44+dataLen)
+			require.Equal(t, make([]byte, dataLen), body[44:]) // silence
+
+			reqs := srv.Requests()
+			require.Len(t, reqs, 1)
+			require.Equal(t, "/v1/audio/music", reqs[0].Endpoint)
+			require.Equal(t, "music_v2_5", reqs[0].Model)
+			require.Equal(t, "lo-fi beats", reqs[0].MusicBody.Prompt)
+		})
+	}
 }

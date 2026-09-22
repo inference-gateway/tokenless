@@ -1,7 +1,8 @@
 // Package gateway implements a hermetic, deterministic mock of the LLM
 // API surface agent apps consume: GET /v1/models, POST /v1/chat/completions
 // (sync JSON and SSE streaming), POST /v1/messages (Anthropic-native),
-// POST /v1/images/generations and /v1/images/edits, and GET /v1/health.
+// POST /v1/images/generations and /v1/images/edits, POST /v1/audio/music,
+// and GET /v1/health.
 //
 // Scenario resolution is stateless: every request carries the full message
 // history, so the scenario is chosen by matching each scenario's regex
@@ -13,6 +14,7 @@ package gateway
 
 import (
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -72,6 +74,8 @@ type Recorded struct {
 	MessagesBody *CreateMessagesRequest
 	// ImagesBody is the full decoded request for /v1/images/generations.
 	ImagesBody *CreateImageRequest
+	// MusicBody is the full decoded request for /v1/audio/music.
+	MusicBody *CreateMusicRequest
 	// RawBody is the request body verbatim, so apps can decode it with their
 	// own richer types when the minimal ones above are not enough.
 	RawBody json.RawMessage
@@ -167,6 +171,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		})
 	case r.Method == http.MethodPost && (r.URL.Path == "/v1/images/generations" || r.URL.Path == "/v1/images/edits"):
 		s.handleImages(w, r)
+	case r.Method == http.MethodPost && r.URL.Path == "/v1/audio/music":
+		s.handleMusic(w, r)
 	case r.Method == http.MethodGet && r.URL.Path == "/v1/expect":
 		s.handleExpect(w, r)
 	case r.Method == http.MethodGet && r.URL.Path == "/v1/health":
@@ -532,6 +538,66 @@ func (s *Server) handleImages(w http.ResponseWriter, r *http.Request) {
 // a real image decoder accepts.
 const onePixelPNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk" +
 	"YPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+
+// handleMusic answers POST /v1/audio/music with a canned WAV clip - silence
+// at 24 kHz, 16-bit, mono - so music tools run their save-to-disk path end to
+// end without a real provider. duration_seconds (default 1s) drives the data
+// length, so a client can read the duration back out of the WAV header. The
+// request is recorded like a completion, so tests can assert the model, prompt,
+// instrumental flag and requested format.
+func (s *Server) handleMusic(w http.ResponseWriter, r *http.Request) {
+	raw, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, `{"error":"reading request body"}`, http.StatusBadRequest)
+		return
+	}
+	var req CreateMusicRequest
+	if err := json.Unmarshal(raw, &req); err != nil {
+		http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+		return
+	}
+
+	s.mu.Lock()
+	s.reqs = append(s.reqs, Recorded{
+		Endpoint:  r.URL.Path,
+		Provider:  r.URL.Query().Get("provider"),
+		Model:     req.Model,
+		MusicBody: &req,
+		RawBody:   raw,
+	})
+	s.mu.Unlock()
+
+	// ponytail: response_format is recorded, not negotiated - the mock serves
+	// WAV regardless because silence needs no mp3 encoder; revisit if a test
+	// must decode the bytes as mp3.
+	w.Header().Set("Content-Type", "audio/wav")
+	_, _ = w.Write(wavClip(req.DurationSeconds))
+}
+
+// wavClip renders silence as a canonical 44-byte-header PCM WAV (24 kHz,
+// 16-bit, mono) sized by durationSeconds; nil or non-positive means 1s.
+func wavClip(durationSeconds *float32) []byte {
+	const sampleRate = 24000
+	secs := 1.0
+	if durationSeconds != nil && *durationSeconds > 0 {
+		secs = float64(*durationSeconds)
+	}
+	dataLen := int(sampleRate * 2 * secs) // 16-bit mono: 2 bytes per frame
+	b := make([]byte, 44+dataLen)
+	b[0], b[1], b[2], b[3] = 'R', 'I', 'F', 'F'
+	binary.LittleEndian.PutUint32(b[4:], uint32(36+dataLen))
+	copy(b[8:], "WAVEfmt ")
+	binary.LittleEndian.PutUint32(b[16:], 16) // fmt chunk size
+	binary.LittleEndian.PutUint16(b[20:], 1)  // PCM
+	binary.LittleEndian.PutUint16(b[22:], 1)  // mono
+	binary.LittleEndian.PutUint32(b[24:], sampleRate)
+	binary.LittleEndian.PutUint32(b[28:], sampleRate*2) // byte rate
+	binary.LittleEndian.PutUint16(b[32:], 2)            // block align
+	binary.LittleEndian.PutUint16(b[34:], 16)           // bits per sample
+	copy(b[36:], "data")
+	binary.LittleEndian.PutUint32(b[40:], uint32(dataLen))
+	return b // data at b[44:] is silence
+}
 
 func writeJSON(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json")

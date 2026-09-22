@@ -93,7 +93,8 @@ scenarios:
 | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | `POST /v1/chat/completions`                           | Sync JSON and SSE streaming; text, reasoning deltas, multi-fragment tool-call chunks, usage frame, `[DONE]` |
 | `POST /v1/messages`                                   | Anthropic-native: thinking/text/tool_use blocks, `input_json_delta` fragments, cache-aware usage            |
-| `POST /v1/images/generations`, `POST /v1/images/edits`| Canned 1x1 PNG so decode-and-save paths run end to end                                                     |
+| `POST /v1/images/generations`, `POST /v1/images/edits`| Canned 1x1 PNG so decode-and-save paths run end to end                                                     | 
+| `POST /v1/audio/music`                                | Canned WAV (24 kHz 16-bit mono silence) sized by `duration_seconds`, default 1s                            | 
 | `GET /v1/models`                                      | Model list with pricing and context-window metadata                                                        |
 | `GET /v1/expect`                                      | JSON report of recorded expectation failures; `200` when clean, `412` otherwise |
 | `GET /v1/health`                                      | `{"status":"ok"}`                                                                                          |
