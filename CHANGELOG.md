@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.0](https://github.com/inference-gateway/tokenless/compare/v0.8.0...v0.9.0) (2026-09-22)
+
+### ✨ Features
+
+* **gateway:** honor response_format in audio endpoints ([#67](https://github.com/inference-gateway/tokenless/issues/67)) ([085cf41](https://github.com/inference-gateway/tokenless/commit/085cf419068d2c190b34f129eaa98b0a80424e3d))
+* **gateway:** simulate the Videos API job lifecycle ([#69](https://github.com/inference-gateway/tokenless/issues/69)) ([9356803](https://github.com/inference-gateway/tokenless/commit/9356803d4b840657765c978bf657fdad8a4589b9))
+
+### 🐛 Bug Fixes
+
+* **gateway:** reject response_format wav on sfx and music endpoints ([#68](https://github.com/inference-gateway/tokenless/issues/68)) ([84bfb21](https://github.com/inference-gateway/tokenless/commit/84bfb213303c6c43c3cc3e7a1f592b25761d82f3))
+
 ## [0.8.0](https://github.com/inference-gateway/tokenless/compare/v0.7.0...v0.8.0) (2026-09-22)
 
 ### ✨ Features
