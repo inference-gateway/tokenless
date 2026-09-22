@@ -246,6 +246,14 @@ type CreateMusicRequest struct {
 	ResponseFormat  *string  `json:"response_format,omitempty"`
 }
 
+// CreateSFXRequest is the decoded /v1/audio/sfx body.
+type CreateSFXRequest struct {
+	DurationSeconds *float32 `json:"duration_seconds,omitempty"`
+	Model           string   `json:"model"`
+	Prompt          string   `json:"prompt"`
+	ResponseFormat  *string  `json:"response_format,omitempty"`
+}
+
 // MessagesMessageRole is the sender role in an Anthropic message.
 type MessagesMessageRole string
 
