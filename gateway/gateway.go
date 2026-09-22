@@ -654,9 +654,10 @@ func wavClip(durationSeconds *float32) []byte {
 
 // writeAudioClip writes the canned clip an audio endpoint serves, selected
 // by response_format: mp3 (or unset, the spec default) gets the MPEG clip,
-// wav the WAV clip, pcm the same samples with the RIFF header stripped, and
-// any other format a 400 naming it and the supported list. duration_seconds
-// drives the clip length in every format.
+// pcm the same samples with the RIFF header stripped, and anything else
+// (wav included - ElevenLabs cannot produce it for SFX or music, see
+// inference-gateway/schemas#220) a 400 naming the format and the supported
+// list. duration_seconds drives the clip length in every format.
 func writeAudioClip(w http.ResponseWriter, model string, format *string, duration *float32) {
 	f := "mp3"
 	if format != nil {
@@ -666,14 +667,11 @@ func writeAudioClip(w http.ResponseWriter, model string, format *string, duratio
 	case "mp3":
 		w.Header().Set("Content-Type", "audio/mpeg")
 		_, _ = w.Write(mp3Clip(duration))
-	case "wav":
-		w.Header().Set("Content-Type", "audio/wav")
-		_, _ = w.Write(wavClip(duration))
 	case "pcm":
 		w.Header().Set("Content-Type", "audio/pcm")
 		_, _ = w.Write(wavClip(duration)[44:])
 	default:
-		msg := fmt.Sprintf("%s does not support response_format %q, supported formats: mp3, wav, pcm", model, f)
+		msg := fmt.Sprintf("%s does not support response_format %q, supported formats: mp3, pcm", model, f)
 		http.Error(w, fmt.Sprintf(`{"error":%q}`, msg), http.StatusBadRequest)
 	}
 }
