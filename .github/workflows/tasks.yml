@@ -6,7 +6,7 @@ on:
       model:
         description: Model to use (provider/model, e.g. llamacpp/phi-4)
         required: false
-        default: ollama_cloud/deepseek-v4-flash:preview
+        default: ""
       prompt:
         description: Task for the agent (workflow_dispatch only)
         required: false
@@ -71,7 +71,7 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - uses: inference-gateway/infer-action@v0.48.1
+      - uses: inference-gateway/infer-action@v0.51.9
         with:
           debug: true
           github-token: ${{ steps.app-token.outputs.token }}
@@ -104,8 +104,9 @@ jobs:
               items to find it.
             - Set Status with `gh project item-edit --id <item-id> --project-id <project-id>
               --field-id <field-id> --single-select-option-id <option-id>`: the option closest to
-              "In Progress" BEFORE you start changing anything, and the option closest to "Done" when
-              your work is complete (body refined, fix pushed, or comment posted).
+              "In Progress" BEFORE you start changing anything, and the option closest to "QA" right
+              after the pull request is opened (fall back to "Done" only when no QA-like option
+              exists). Never set "Done" - that happens at merge.
           plugins: |
             DietrichGebert/ponytail
             ayghri/i-have-adhd
