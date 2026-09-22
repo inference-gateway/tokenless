@@ -1,7 +1,8 @@
 // Package gateway implements a hermetic, deterministic mock of the LLM
 // API surface agent apps consume: GET /v1/models, POST /v1/chat/completions
 // (sync JSON and SSE streaming), POST /v1/messages (Anthropic-native),
-// POST /v1/images/generations and /v1/images/edits, and GET /v1/health.
+// POST /v1/images/generations and /v1/images/edits, POST /v1/audio/music,
+// and GET /v1/health.
 //
 // Scenario resolution is stateless: every request carries the full message
 // history, so the scenario is chosen by matching each scenario's regex
@@ -16,6 +17,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"slices"
 	"strings"
@@ -72,6 +74,8 @@ type Recorded struct {
 	MessagesBody *CreateMessagesRequest
 	// ImagesBody is the full decoded request for /v1/images/generations.
 	ImagesBody *CreateImageRequest
+	// MusicBody is the full decoded request for /v1/audio/music.
+	MusicBody *CreateMusicRequest
 	// RawBody is the request body verbatim, so apps can decode it with their
 	// own richer types when the minimal ones above are not enough.
 	RawBody json.RawMessage
@@ -167,6 +171,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		})
 	case r.Method == http.MethodPost && (r.URL.Path == "/v1/images/generations" || r.URL.Path == "/v1/images/edits"):
 		s.handleImages(w, r)
+	case r.Method == http.MethodPost && r.URL.Path == "/v1/audio/music":
+		s.handleMusic(w, r)
 	case r.Method == http.MethodGet && r.URL.Path == "/v1/expect":
 		s.handleExpect(w, r)
 	case r.Method == http.MethodGet && r.URL.Path == "/v1/health":
@@ -532,6 +538,57 @@ func (s *Server) handleImages(w http.ResponseWriter, r *http.Request) {
 // a real image decoder accepts.
 const onePixelPNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk" +
 	"YPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+
+// handleMusic answers POST /v1/audio/music with a canned MP3 clip - silence
+// as MPEG-1 Layer III frames (44.1 kHz, 128 kbps, mono) - so music tools run
+// their save-to-disk path end to end without a real provider.
+// duration_seconds (default 1s) drives the frame count, so a client can read
+// the duration back as frames × 1152 / 44100. The request is recorded like a
+// completion, so tests can assert the model, prompt, instrumental flag and
+// requested format.
+func (s *Server) handleMusic(w http.ResponseWriter, r *http.Request) {
+	raw, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, `{"error":"reading request body"}`, http.StatusBadRequest)
+		return
+	}
+	var req CreateMusicRequest
+	if err := json.Unmarshal(raw, &req); err != nil {
+		http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+		return
+	}
+
+	s.mu.Lock()
+	s.reqs = append(s.reqs, Recorded{
+		Endpoint:  r.URL.Path,
+		Provider:  r.URL.Query().Get("provider"),
+		Model:     req.Model,
+		MusicBody: &req,
+		RawBody:   raw,
+	})
+	s.mu.Unlock()
+
+	w.Header().Set("Content-Type", "audio/mpeg")
+	_, _ = w.Write(mp3Clip(req.DurationSeconds))
+}
+
+// mp3Clip renders silence as identical MPEG-1 Layer III frames (44.1 kHz,
+// 128 kbps, mono; zeroed side info and main data) covering durationSeconds;
+// nil or non-positive means 1s.
+func mp3Clip(durationSeconds *float32) []byte {
+	const (
+		sampleRate      = 44100
+		samplesPerFrame = 1152
+		frameLen        = 417
+	)
+	secs := 1.0
+	if durationSeconds != nil && *durationSeconds > 0 {
+		secs = float64(*durationSeconds)
+	}
+	frame := make([]byte, frameLen)
+	frame[0], frame[1], frame[2], frame[3] = 0xFF, 0xFB, 0x90, 0xC0
+	return slices.Repeat(frame, int(math.Ceil(secs*sampleRate/samplesPerFrame)))
+}
 
 func writeJSON(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json")

@@ -487,3 +487,43 @@ func TestImagesEndpoints(t *testing.T) {
 	require.Equal(t, "a red square", reqs[1].ImagesBody.Prompt)
 	require.Equal(t, "high", *reqs[1].ImagesBody.Quality)
 }
+
+func TestMusicEndpoint(t *testing.T) {
+	tests := []struct {
+		name       string
+		body       string
+		wantFrames int
+	}{
+		{"honors duration_seconds", `{"model": "music_v2_5", "prompt": "lo-fi beats", "duration_seconds": 2.5, "instrumental": true, "response_format": "mp3"}`, 96},
+		{"defaults to one second", `{"model": "music_v2_5", "prompt": "lo-fi beats"}`, 39},
+		{"non-positive duration defaults", `{"model": "music_v2_5", "prompt": "lo-fi beats", "duration_seconds": -3}`, 39},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := New(Default())
+			ts := httptest.NewServer(srv)
+			defer ts.Close()
+
+			resp, err := http.Post(ts.URL+"/v1/audio/music", "application/json", strings.NewReader(tt.body))
+			require.NoError(t, err)
+			body, err := io.ReadAll(resp.Body)
+			_ = resp.Body.Close()
+			require.NoError(t, err)
+			require.Equal(t, http.StatusOK, resp.StatusCode)
+			require.Equal(t, "audio/mpeg", resp.Header.Get("Content-Type"))
+
+			require.Len(t, body, tt.wantFrames*417)
+			for start := 0; start < len(body); start += 417 {
+				frame := body[start : start+417]
+				require.Equal(t, []byte{0xFF, 0xFB, 0x90, 0xC0}, frame[:4])
+				require.Equal(t, make([]byte, 413), frame[4:])
+			}
+
+			reqs := srv.Requests()
+			require.Len(t, reqs, 1)
+			require.Equal(t, "/v1/audio/music", reqs[0].Endpoint)
+			require.Equal(t, "music_v2_5", reqs[0].Model)
+			require.Equal(t, "lo-fi beats", reqs[0].MusicBody.Prompt)
+		})
+	}
+}

@@ -237,6 +237,15 @@ type ImagesResponse struct {
 	Data    []Image `json:"data"`
 }
 
+// CreateMusicRequest is the decoded /v1/audio/music body.
+type CreateMusicRequest struct {
+	DurationSeconds *float32 `json:"duration_seconds,omitempty"`
+	Instrumental    *bool    `json:"instrumental,omitempty"`
+	Model           string   `json:"model"`
+	Prompt          string   `json:"prompt"`
+	ResponseFormat  *string  `json:"response_format,omitempty"`
+}
+
 // MessagesMessageRole is the sender role in an Anthropic message.
 type MessagesMessageRole string
 
