@@ -2,7 +2,8 @@
 // API surface agent apps consume: GET /v1/models, POST /v1/chat/completions
 // (sync JSON and SSE streaming), POST /v1/messages (Anthropic-native),
 // POST /v1/images/generations and /v1/images/edits, POST /v1/audio/music,
-// POST /v1/audio/sfx, and GET /v1/health.
+// POST /v1/audio/sfx, the Videos API job lifecycle (POST /v1/videos,
+// GET /v1/videos/{id}, GET /v1/videos/{id}/content), and GET /v1/health.
 //
 // Scenario resolution is stateless: every request carries the full message
 // history, so the scenario is chosen by matching each scenario's regex
@@ -13,10 +14,13 @@
 package gateway
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"image"
+	"image/jpeg"
 	"io"
 	"math"
 	"net/http"
@@ -79,6 +83,8 @@ type Recorded struct {
 	MusicBody *CreateMusicRequest
 	// SFXBody is the full decoded request for /v1/audio/sfx.
 	SFXBody *CreateSFXRequest
+	// VideoBody is the full decoded multipart form for POST /v1/videos.
+	VideoBody *CreateVideoRequest
 	// RawBody is the request body verbatim, so apps can decode it with their
 	// own richer types when the minimal ones above are not enough.
 	RawBody json.RawMessage
@@ -90,9 +96,11 @@ type Server struct {
 
 	defs *ScenarioFile
 
-	mu    sync.Mutex
-	fails map[string]int
-	reqs  []Recorded
+	mu     sync.Mutex
+	fails  map[string]int
+	reqs   []Recorded
+	jobs   map[string]*videoJobState
+	videoN int
 
 	expectFails []ExpectFailure
 }
@@ -104,7 +112,7 @@ func New(defs ...*ScenarioFile) *Server {
 	if len(defs) > 0 && defs[0] != nil {
 		d = defs[0]
 	}
-	return &Server{defs: d, fails: make(map[string]int)}
+	return &Server{defs: d, fails: make(map[string]int), jobs: make(map[string]*videoJobState)}
 }
 
 // Requests returns a copy of all recorded chat-completion requests.
@@ -178,6 +186,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.handleMusic(w, r)
 	case r.Method == http.MethodPost && r.URL.Path == "/v1/audio/sfx":
 		s.handleSFX(w, r)
+	case r.Method == http.MethodPost && r.URL.Path == "/v1/videos":
+		s.handleVideos(w, r)
+	case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/v1/videos/"):
+		s.handleVideoJob(w, r)
 	case r.Method == http.MethodGet && r.URL.Path == "/v1/expect":
 		s.handleExpect(w, r)
 	case r.Method == http.MethodGet && r.URL.Path == "/v1/health":
@@ -674,6 +686,272 @@ func writeAudioClip(w http.ResponseWriter, model string, format *string, duratio
 		msg := fmt.Sprintf("%s does not support response_format %q, supported formats: mp3, pcm", model, f)
 		http.Error(w, fmt.Sprintf(`{"error":%q}`, msg), http.StatusBadRequest)
 	}
+}
+
+// videoJobState is one mocked video job: the served VideoJob plus the poll
+// counter that walks it through the lifecycle.
+type videoJobState struct {
+	job   VideoJob
+	polls int
+}
+
+// handleVideos answers POST /v1/videos (multipart/form-data) by recording the
+// request and creating a video job in queued, mirroring createVideo. The
+// returned id drives the poll/content endpoints.
+func (s *Server) handleVideos(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseMultipartForm(32 << 20); err != nil {
+		http.Error(w, `{"error":"invalid multipart form"}`, http.StatusBadRequest)
+		return
+	}
+	req := &CreateVideoRequest{Model: videoForm(r, "model"), Prompt: videoForm(r, "prompt")}
+	if v := videoForm(r, "seconds"); v != "" {
+		req.Seconds = &v
+	}
+	if v := videoForm(r, "size"); v != "" {
+		req.Size = &v
+	}
+	if mf := r.MultipartForm; mf != nil {
+		for k := range mf.Value {
+			req.Fields = append(req.Fields, k)
+		}
+		for k := range mf.File {
+			req.Fields = append(req.Fields, k)
+		}
+	}
+
+	now := time.Now().Unix()
+	s.mu.Lock()
+	s.videoN++
+	st := &videoJobState{job: VideoJob{
+		ID:        fmt.Sprintf("video-job-%d", s.videoN),
+		Object:    "video",
+		Model:     req.Model,
+		Status:    VideoQueued,
+		CreatedAt: now,
+		Seconds:   req.Seconds,
+		Size:      req.Size,
+	}}
+	s.jobs[st.job.ID] = st
+	s.reqs = append(s.reqs, Recorded{
+		Endpoint:  r.URL.Path,
+		Provider:  r.URL.Query().Get("provider"),
+		Model:     req.Model,
+		VideoBody: req,
+	})
+	s.mu.Unlock()
+
+	writeJSON(w, st.job)
+}
+
+// videoForm returns the first value of a multipart form field, or "".
+func videoForm(r *http.Request, key string) string {
+	if mf := r.MultipartForm; mf != nil {
+		if vs := mf.Value[key]; len(vs) > 0 {
+			return vs[0]
+		}
+	}
+	return ""
+}
+
+// handleVideoJob answers GET /v1/videos/{video_id} (a poll that advances the
+// job one lifecycle step) and GET /v1/videos/{video_id}/content (404 until
+// the job is completed, then the canned MP4). Unknown ids 404. Both are
+// recorded like other requests, so tests can assert polling behaviour.
+func (s *Server) handleVideoJob(w http.ResponseWriter, r *http.Request) {
+	id, action, _ := strings.Cut(strings.TrimPrefix(r.URL.Path, "/v1/videos/"), "/")
+	s.mu.Lock()
+	st := s.jobs[id]
+	s.mu.Unlock()
+	s.record(Recorded{Endpoint: r.URL.Path, Provider: r.URL.Query().Get("provider")})
+
+	if st == nil {
+		http.Error(w, `{"error":"unknown video id"}`, http.StatusNotFound)
+		return
+	}
+	switch action {
+	case "":
+		s.pollVideoJob(w, r, st)
+	case "content":
+		s.mu.Lock()
+		completed := st.job.Status == VideoCompleted
+		s.mu.Unlock()
+		if !completed {
+			http.Error(w, `{"error":"video is not completed"}`, http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "video/mp4")
+		_, _ = w.Write(videoClip)
+	default:
+		http.Error(w, `{"error":"unknown video resource"}`, http.StatusNotFound)
+	}
+}
+
+// pollVideoJob advances the job one step per poll - queued -> in_progress
+// (rising progress) -> completed, or failed at the same poll when the
+// scenario's videos.fail is set - and serves the updated job. Injected
+// error/stall happen before any advance, so a failed attempt never consumes
+// a lifecycle step.
+func (s *Server) pollVideoJob(w http.ResponseWriter, r *http.Request, st *videoJobState) {
+	cfg := s.defs.Videos
+	if cfg == nil {
+		cfg = &VideoConfig{}
+	}
+	if cfg.Error != nil && s.consumeFailure("video-poll", 0, cfg.Error) {
+		w.WriteHeader(cfg.Error.Status)
+		_, _ = fmt.Fprint(w, `{"error":"injected"}`)
+		return
+	}
+	if cfg.Stall != nil && s.consumeFailure("stall:video-poll", 0, &ErrorInject{Times: cfg.Stall.Times}) {
+		<-r.Context().Done()
+		return
+	}
+
+	n := cfg.pollsUntilComplete()
+	now := time.Now().Unix()
+	s.mu.Lock()
+	st.polls++
+	switch {
+	case cfg.Fail != nil && st.polls >= n:
+		st.job.Status = VideoFailed
+		st.job.CompletedAt = &now
+		st.job.Error = &VideoJobError{Code: cfg.Fail.Code, Message: cfg.Fail.Message}
+	case st.polls >= n:
+		st.job.Status = VideoCompleted
+		st.job.Progress = 100
+		st.job.CompletedAt = &now
+	default:
+		st.job.Status = VideoInProgress
+		st.job.Progress = st.polls * 100 / n
+	}
+	job := st.job
+	s.mu.Unlock()
+	writeJSON(w, job)
+}
+
+// videoClip is the canned MP4 a completed video job serves: a minimal
+// Motion-JPEG-in-MP4 container with a single solid-black frame, built once
+// (the video equivalent of the 1x1 PNG for images).
+var videoClip = buildMP4()
+
+// blackJPEG renders a 2x2 solid-black JPEG with the standard library - the
+// single frame the canned MP4 carries. The panic is a build-time invariant
+// like gateway.Default(): an in-memory *image.RGBA is always encodable.
+func blackJPEG() []byte {
+	var buf bytes.Buffer
+	if err := jpeg.Encode(&buf, image.NewRGBA(image.Rect(0, 0, 2, 2)), nil); err != nil {
+		panic("tokenless: encoding canned black frame: " + err.Error())
+	}
+	return buf.Bytes()
+}
+
+// mp4Box assembles one ISO-BMFF box: 4-byte big-endian size, 4-byte type.
+func mp4Box(name string, payload ...[]byte) []byte {
+	n := 8
+	for _, p := range payload {
+		n += len(p)
+	}
+	b := make([]byte, 8, n)
+	binary.BigEndian.PutUint32(b, uint32(n))
+	copy(b[4:], name)
+	for _, p := range payload {
+		b = append(b, p...)
+	}
+	return b
+}
+
+// mp4U32 packs uint32s big-endian.
+func mp4U32(vs ...uint32) []byte {
+	b := make([]byte, 4*len(vs))
+	for i, v := range vs {
+		binary.BigEndian.PutUint32(b[4*i:], v)
+	}
+	return b
+}
+
+// mp4U16 packs uint16s big-endian.
+func mp4U16(vs ...uint16) []byte {
+	b := make([]byte, 2*len(vs))
+	for i, v := range vs {
+		binary.BigEndian.PutUint16(b[2*i:], v)
+	}
+	return b
+}
+
+// buildMP4 renders the canned clip: ftyp + moov + mdat for one Motion-JPEG
+// track (2x2, one sample of 1000ms) carrying a single black frame. The stco
+// sample offset is patched after layout, when the mdat position is known.
+func buildMP4() []byte {
+	frame := blackJPEG()
+
+	ftyp := mp4Box("ftyp", mp4U32(0x69736F6D /* isom */, 0x200, 0x69736F6D, 0x69736F32 /* iso2 */, 0x6D703431 /* mp41 */))
+
+	mvhd := mp4Box("mvhd", []byte{0, 0, 0, 0}, // version 0, flags 0
+		mp4U32(0, 0, 1000, 1000, 0x00010000), // created, modified, timescale, duration, rate 1.0
+		mp4U16(0x0100, 0, 0),                 // volume, reserved
+		mp4U32(0, 0),                         // reserved
+		mp4U32(0x00010000, 0, 0, 0, 0x00010000, 0, 0, 0, 0x40000000), // unity matrix
+		mp4U32(0, 0, 0, 0, 0, 0),                                     // pre_defined
+		mp4U32(2),                                                    // next_track_ID
+	)
+
+	tkhd := mp4Box("tkhd", []byte{0, 0, 0, 3}, // version 0, flags 3 (enabled | in movie)
+		mp4U32(0, 0, 1, 0, 1000), // created, modified, track_ID, reserved, duration
+		mp4U32(0, 0),             // reserved
+		mp4U16(0, 0, 0, 0),       // layer, alternate_group, volume, reserved
+		mp4U32(0x00010000, 0, 0, 0, 0x00010000, 0, 0, 0, 0x40000000), // unity matrix
+		mp4U32(2<<16, 2<<16), // width, height (16.16 fixed point)
+	)
+
+	mdhd := mp4Box("mdhd", []byte{0, 0, 0, 0},
+		mp4U32(0, 0, 1000, 1000), // created, modified, timescale, duration
+		mp4U16(0x55C4, 0),        // language "und", pre_defined
+	)
+
+	hdlr := mp4Box("hdlr", []byte{0, 0, 0, 0},
+		mp4U32(0),       // pre_defined
+		[]byte("vide"),  // handler_type
+		mp4U32(0, 0, 0), // reserved
+		[]byte("VideoHandler\x00"),
+	)
+
+	vmhd := mp4Box("vmhd", []byte{0, 0, 0, 1}, // version 0, flags 1
+		mp4U16(0, 0, 0, 0), // graphicsmode, opcolor
+	)
+
+	url := mp4Box("url ", []byte{0, 0, 0, 1}) // flags 1: self-contained reference
+	dref := mp4Box("dref", []byte{0, 0, 0, 0}, mp4U32(1), url)
+	dinf := mp4Box("dinf", dref)
+
+	// Motion-JPEG sample entry: the frame itself is a standalone JPEG, so
+	// no codec-specific child box (avcC et al) is needed.
+	jpegEntry := mp4Box("jpeg",
+		make([]byte, 6),                // reserved
+		mp4U16(1),                      // data_reference_index
+		mp4U16(0, 0),                   // pre_defined, reserved
+		mp4U32(0, 0, 0),                // pre_defined
+		mp4U16(2, 2),                   // width, height
+		mp4U32(0x00480000, 0x00480000), // 72 dpi resolution
+		mp4U32(0),                      // reserved
+		mp4U16(1),                      // frame_count
+		make([]byte, 32),               // compressorname
+		mp4U16(0x0018, 0xFFFF),         // depth 24, pre_defined -1
+	)
+	stsd := mp4Box("stsd", []byte{0, 0, 0, 0}, mp4U32(1), jpegEntry)
+	stts := mp4Box("stts", []byte{0, 0, 0, 0}, mp4U32(1, 1, 1000))
+	stsc := mp4Box("stsc", []byte{0, 0, 0, 0}, mp4U32(1, 1, 1))
+	stsz := mp4Box("stsz", []byte{0, 0, 0, 0}, mp4U32(0, 1, uint32(len(frame))))
+	stco := mp4Box("stco", []byte{0, 0, 0, 0}, mp4U32(1, 0)) // offset patched below
+	stbl := mp4Box("stbl", stsd, stts, stsc, stsz, stco)
+	minf := mp4Box("minf", vmhd, dinf, stbl)
+	mdia := mp4Box("mdia", mdhd, hdlr, minf)
+	trak := mp4Box("trak", tkhd, mdia)
+	moov := mp4Box("moov", mvhd, trak)
+	mdat := mp4Box("mdat", frame)
+
+	out := append(append(append([]byte{}, ftyp...), moov...), mdat...)
+	i := bytes.Index(out, []byte("stco"))
+	binary.BigEndian.PutUint32(out[i+16:], uint32(len(ftyp)+len(moov)+8))
+	return out
 }
 
 func writeJSON(w http.ResponseWriter, v any) {

@@ -254,6 +254,48 @@ type CreateSFXRequest struct {
 	ResponseFormat  *string  `json:"response_format,omitempty"`
 }
 
+// VideoJobStatus is the lifecycle status of a mocked video job.
+type VideoJobStatus string
+
+const (
+	VideoQueued     VideoJobStatus = "queued"
+	VideoInProgress VideoJobStatus = "in_progress"
+	VideoCompleted  VideoJobStatus = "completed"
+	VideoFailed     VideoJobStatus = "failed"
+)
+
+// VideoJob mirrors the createVideo/retrieveVideo response of the Videos API.
+type VideoJob struct {
+	ID          string         `json:"id"`
+	Object      string         `json:"object"`
+	Model       string         `json:"model"`
+	Status      VideoJobStatus `json:"status"`
+	Progress    int            `json:"progress"`
+	CreatedAt   int64          `json:"created_at"`
+	CompletedAt *int64         `json:"completed_at,omitempty"`
+	Seconds     *string        `json:"seconds,omitempty"`
+	Size        *string        `json:"size,omitempty"`
+	Error       *VideoJobError `json:"error,omitempty"`
+}
+
+// VideoJobError is the error payload of a failed video job.
+type VideoJobError struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+// CreateVideoRequest is the decoded multipart form of POST /v1/videos.
+// Fields lists every multipart field name in arrival order, so tests can
+// assert binary parts (input_reference, audio) were uploaded without
+// storing their bytes.
+type CreateVideoRequest struct {
+	Model   string   `json:"model"`
+	Prompt  string   `json:"prompt"`
+	Fields  []string `json:"fields,omitempty"`
+	Seconds *string  `json:"seconds,omitempty"`
+	Size    *string  `json:"size,omitempty"`
+}
+
 // MessagesMessageRole is the sender role in an Anthropic message.
 type MessagesMessageRole string
 
