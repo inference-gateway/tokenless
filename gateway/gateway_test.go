@@ -3,7 +3,6 @@ package gateway
 import (
 	"bufio"
 	"bytes"
-	"encoding/binary"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -491,13 +490,13 @@ func TestImagesEndpoints(t *testing.T) {
 
 func TestMusicEndpoint(t *testing.T) {
 	tests := []struct {
-		name     string
-		body     string
-		wantSecs float64
+		name       string
+		body       string
+		wantFrames int
 	}{
-		{"honors duration_seconds", `{"model": "music_v2_5", "prompt": "lo-fi beats", "duration_seconds": 2.5, "instrumental": true, "response_format": "wav"}`, 2.5},
-		{"defaults to one second", `{"model": "music_v2_5", "prompt": "lo-fi beats"}`, 1},
-		{"non-positive duration defaults", `{"model": "music_v2_5", "prompt": "lo-fi beats", "duration_seconds": -3}`, 1},
+		{"honors duration_seconds", `{"model": "music_v2_5", "prompt": "lo-fi beats", "duration_seconds": 2.5, "instrumental": true, "response_format": "mp3"}`, 96},
+		{"defaults to one second", `{"model": "music_v2_5", "prompt": "lo-fi beats"}`, 39},
+		{"non-positive duration defaults", `{"model": "music_v2_5", "prompt": "lo-fi beats", "duration_seconds": -3}`, 39},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -511,21 +510,14 @@ func TestMusicEndpoint(t *testing.T) {
 			_ = resp.Body.Close()
 			require.NoError(t, err)
 			require.Equal(t, http.StatusOK, resp.StatusCode)
-			require.Equal(t, "audio/wav", resp.Header.Get("Content-Type"))
+			require.Equal(t, "audio/mpeg", resp.Header.Get("Content-Type"))
 
-			// WAV header: PCM 16-bit mono at 24 kHz with tt.wantSecs of silence.
-			require.Equal(t, "RIFF", string(body[:4]))
-			require.Equal(t, "WAVE", string(body[8:12]))
-			require.Equal(t, uint16(1), binary.LittleEndian.Uint16(body[20:]))     // PCM
-			require.Equal(t, uint16(1), binary.LittleEndian.Uint16(body[22:]))     // mono
-			require.Equal(t, uint32(24000), binary.LittleEndian.Uint32(body[24:])) // sample rate
-			require.Equal(t, uint16(16), binary.LittleEndian.Uint16(body[34:]))    // bits per sample
-			require.Equal(t, "data", string(body[36:40]))
-			dataLen := int(binary.LittleEndian.Uint32(body[40:]))
-			require.Equal(t, int(24000*2*tt.wantSecs), dataLen)
-			require.Equal(t, uint32(36+dataLen), binary.LittleEndian.Uint32(body[4:]))
-			require.Len(t, body, 44+dataLen)
-			require.Equal(t, make([]byte, dataLen), body[44:]) // silence
+			require.Len(t, body, tt.wantFrames*417)
+			for start := 0; start < len(body); start += 417 {
+				frame := body[start : start+417]
+				require.Equal(t, []byte{0xFF, 0xFB, 0x90, 0xC0}, frame[:4])
+				require.Equal(t, make([]byte, 413), frame[4:])
+			}
 
 			reqs := srv.Requests()
 			require.Len(t, reqs, 1)

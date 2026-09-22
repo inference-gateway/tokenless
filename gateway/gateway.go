@@ -14,10 +14,10 @@ package gateway
 
 import (
 	"context"
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"slices"
 	"strings"
@@ -539,12 +539,13 @@ func (s *Server) handleImages(w http.ResponseWriter, r *http.Request) {
 const onePixelPNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk" +
 	"YPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
 
-// handleMusic answers POST /v1/audio/music with a canned WAV clip - silence
-// at 24 kHz, 16-bit, mono - so music tools run their save-to-disk path end to
-// end without a real provider. duration_seconds (default 1s) drives the data
-// length, so a client can read the duration back out of the WAV header. The
-// request is recorded like a completion, so tests can assert the model, prompt,
-// instrumental flag and requested format.
+// handleMusic answers POST /v1/audio/music with a canned MP3 clip - silence
+// as MPEG-1 Layer III frames (44.1 kHz, 128 kbps, mono) - so music tools run
+// their save-to-disk path end to end without a real provider.
+// duration_seconds (default 1s) drives the frame count, so a client can read
+// the duration back as frames × 1152 / 44100. The request is recorded like a
+// completion, so tests can assert the model, prompt, instrumental flag and
+// requested format.
 func (s *Server) handleMusic(w http.ResponseWriter, r *http.Request) {
 	raw, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -567,33 +568,26 @@ func (s *Server) handleMusic(w http.ResponseWriter, r *http.Request) {
 	})
 	s.mu.Unlock()
 
-	w.Header().Set("Content-Type", "audio/wav")
-	_, _ = w.Write(wavClip(req.DurationSeconds))
+	w.Header().Set("Content-Type", "audio/mpeg")
+	_, _ = w.Write(mp3Clip(req.DurationSeconds))
 }
 
-// wavClip renders silence as a canonical 44-byte-header PCM WAV (24 kHz,
-// 16-bit, mono) sized by durationSeconds; nil or non-positive means 1s.
-func wavClip(durationSeconds *float32) []byte {
-	const sampleRate = 24000
+// mp3Clip renders silence as identical MPEG-1 Layer III frames (44.1 kHz,
+// 128 kbps, mono; zeroed side info and main data) covering durationSeconds;
+// nil or non-positive means 1s.
+func mp3Clip(durationSeconds *float32) []byte {
+	const (
+		sampleRate      = 44100
+		samplesPerFrame = 1152
+		frameLen        = 417
+	)
 	secs := 1.0
 	if durationSeconds != nil && *durationSeconds > 0 {
 		secs = float64(*durationSeconds)
 	}
-	dataLen := int(sampleRate * 2 * secs) // 16-bit mono: 2 bytes per frame
-	b := make([]byte, 44+dataLen)
-	b[0], b[1], b[2], b[3] = 'R', 'I', 'F', 'F'
-	binary.LittleEndian.PutUint32(b[4:], uint32(36+dataLen))
-	copy(b[8:], "WAVEfmt ")
-	binary.LittleEndian.PutUint32(b[16:], 16) // fmt chunk size
-	binary.LittleEndian.PutUint16(b[20:], 1)  // PCM
-	binary.LittleEndian.PutUint16(b[22:], 1)  // mono
-	binary.LittleEndian.PutUint32(b[24:], sampleRate)
-	binary.LittleEndian.PutUint32(b[28:], sampleRate*2) // byte rate
-	binary.LittleEndian.PutUint16(b[32:], 2)            // block align
-	binary.LittleEndian.PutUint16(b[34:], 16)           // bits per sample
-	copy(b[36:], "data")
-	binary.LittleEndian.PutUint32(b[40:], uint32(dataLen))
-	return b // data at b[44:] is silence
+	frame := make([]byte, frameLen)
+	frame[0], frame[1], frame[2], frame[3] = 0xFF, 0xFB, 0x90, 0xC0
+	return slices.Repeat(frame, int(math.Ceil(secs*sampleRate/samplesPerFrame)))
 }
 
 func writeJSON(w http.ResponseWriter, v any) {
