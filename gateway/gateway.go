@@ -567,9 +567,6 @@ func (s *Server) handleMusic(w http.ResponseWriter, r *http.Request) {
 	})
 	s.mu.Unlock()
 
-	// ponytail: response_format is recorded, not negotiated - the mock serves
-	// WAV regardless because silence needs no mp3 encoder; revisit if a test
-	// must decode the bytes as mp3.
 	w.Header().Set("Content-Type", "audio/wav")
 	_, _ = w.Write(wavClip(req.DurationSeconds))
 }
