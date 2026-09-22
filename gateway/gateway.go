@@ -634,19 +634,19 @@ func wavClip(durationSeconds *float32) []byte {
 	if durationSeconds != nil && *durationSeconds > 0 {
 		secs = float64(*durationSeconds)
 	}
-	dataLen := uint32(math.Ceil(secs*sampleRate)) * 2 // 1 channel, 16-bit
+	dataLen := uint32(math.Ceil(secs*sampleRate)) * 2
 	b := make([]byte, 44+int(dataLen))
 	copy(b, "RIFF")
 	binary.LittleEndian.PutUint32(b[4:], 36+dataLen)
 	copy(b[8:], "WAVE")
 	copy(b[12:], "fmt ")
-	binary.LittleEndian.PutUint32(b[16:], 16)           // fmt chunk size (PCM)
-	binary.LittleEndian.PutUint16(b[20:], 1)            // PCM
-	binary.LittleEndian.PutUint16(b[22:], 1)            // mono
-	binary.LittleEndian.PutUint32(b[24:], sampleRate)   // Hz
-	binary.LittleEndian.PutUint32(b[28:], sampleRate*2) // byte rate
-	binary.LittleEndian.PutUint16(b[32:], 2)            // block align
-	binary.LittleEndian.PutUint16(b[34:], 16)           // bits per sample
+	binary.LittleEndian.PutUint32(b[16:], 16)
+	binary.LittleEndian.PutUint16(b[20:], 1)
+	binary.LittleEndian.PutUint16(b[22:], 1)
+	binary.LittleEndian.PutUint32(b[24:], sampleRate)
+	binary.LittleEndian.PutUint32(b[28:], sampleRate*2)
+	binary.LittleEndian.PutUint16(b[32:], 2)
+	binary.LittleEndian.PutUint16(b[34:], 16)
 	copy(b[36:], "data")
 	binary.LittleEndian.PutUint32(b[40:], dataLen)
 	return b
