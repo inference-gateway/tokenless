@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.0](https://github.com/inference-gateway/tokenless/compare/v0.6.2...v0.7.0) (2026-09-22)
+
+### ✨ Features
+
+* **gateway:** serve POST /v1/audio/music with a canned MP3 clip ([#61](https://github.com/inference-gateway/tokenless/issues/61)) ([1926b4f](https://github.com/inference-gateway/tokenless/commit/1926b4f6a7edf252ceb9fe5eef8b0ff44cbabfc9))
+
+### 👷 CI
+
+* sync opentask agent workflow with current install config ([#60](https://github.com/inference-gateway/tokenless/issues/60)) ([fc2f2d1](https://github.com/inference-gateway/tokenless/commit/fc2f2d1eeb5f142ac8875425a19468ac48ff3e89))
+
+### 📚 Documentation
+
+* regenerate AGENTS.md from current codebase ([#55](https://github.com/inference-gateway/tokenless/issues/55)) ([3a0591f](https://github.com/inference-gateway/tokenless/commit/3a0591fb306d8a4019f9eb145a526410c1bcd146))
+
+### 🔧 Miscellaneous
+
+* **deps:** bump github.com/anthropics/anthropic-sdk-go in /examples ([#57](https://github.com/inference-gateway/tokenless/issues/57)) ([08d90be](https://github.com/inference-gateway/tokenless/commit/08d90be441e55d7ad5fe0b3319fae84c4afa4e9e))
+* **deps:** bump github.com/inference-gateway/sdk in /examples ([#56](https://github.com/inference-gateway/tokenless/issues/56)) ([8236fe1](https://github.com/inference-gateway/tokenless/commit/8236fe19c294a3996e2e0ec758892fb31e3423a1))
+* **deps:** bump github.com/openai/openai-go/v3 in /examples ([#58](https://github.com/inference-gateway/tokenless/issues/58)) ([ca8bf4f](https://github.com/inference-gateway/tokenless/commit/ca8bf4f40c59b85a30c1e4c230083ef5f4bc3739))
+
 ## [0.6.2](https://github.com/inference-gateway/tokenless/compare/v0.6.1...v0.6.2) (2026-09-16)
 
 ### 🔧 Miscellaneous
