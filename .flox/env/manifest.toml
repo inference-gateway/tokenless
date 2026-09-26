@@ -1,0 +1,17 @@
+schema-version = "1.17.0"
+
+
+[install]
+go.pkg-path = "go"
+go.version = "^1.26.7"
+claude-code.pkg-path = "claude-code"
+claude-code.version = "2.1.280"
+infer.flake = "github:inference-gateway/cli/v0.209.0"
+
+
+[hook]
+on-activate = """
+  export GOENV="$FLOX_ENV_CACHE/goenv"
+  go get .
+"""
+
