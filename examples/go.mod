@@ -8,7 +8,7 @@ require (
 	github.com/anthropics/anthropic-sdk-go v1.73.0
 	github.com/inference-gateway/sdk v1.37.2
 	github.com/inference-gateway/tokenless v0.1.0
-	github.com/openai/openai-go/v3 v3.63.1
+	github.com/openai/openai-go/v3 v3.66.0
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.12.1
 )
@@ -31,6 +31,6 @@ require (
 	github.com/tidwall/sjson v1.2.5 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	go.yaml.in/yaml/v4 v4.0.0-rc.2 // indirect
-	golang.org/x/sync v0.16.0 // indirect
+	golang.org/x/sync v0.22.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
