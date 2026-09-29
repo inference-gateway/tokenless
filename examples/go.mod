@@ -6,7 +6,7 @@ replace github.com/inference-gateway/tokenless => ../
 
 require (
 	github.com/anthropics/anthropic-sdk-go v1.75.0
-	github.com/inference-gateway/sdk v1.37.2
+	github.com/inference-gateway/sdk v1.40.1
 	github.com/inference-gateway/tokenless v0.1.0
 	github.com/openai/openai-go/v3 v3.63.1
 	github.com/spf13/cobra v1.10.2
