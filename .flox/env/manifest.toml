@@ -3,7 +3,7 @@ schema-version = "1.17.0"
 
 [install]
 go.pkg-path = "go"
-go.version = "^1.26.7"
+go.version = "^1.26.8"
 claude-code.pkg-path = "claude-code"
 claude-code.version = "2.1.280"
 infer.flake = "github:inference-gateway/cli/v0.209.0"

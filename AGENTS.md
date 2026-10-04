@@ -25,7 +25,7 @@ Try the binary: `go run ./cmd/tokenless --port 8080 --scenarios gateway/scenario
 
 ## Code style
 
-- Go 1.26.7; `gofmt` with no exceptions; `go vet` clean.
+- Go 1.26.8; `gofmt` with no exceptions; `go vet` clean.
 - testify `require` for assertions; table-driven tests with `t.Run`; helpers call `t.Helper()`.
 - Wire types are hand-written and minimal — only fields the mock reads or writes; JSON tags follow the OpenAI/Anthropic wire formats plus gateway extensions.
 - Return errors from internal functions; `log.Fatal` only in `main()`; panic only in `gateway.Default()` when embedded scenarios are invalid (a build-time invariant).
