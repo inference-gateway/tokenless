@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.1](https://github.com/inference-gateway/tokenless/compare/v0.9.0...v0.9.1) (2026-10-04)
+
+### 🔧 Miscellaneous
+
+* **deps:** add flox deps ([93a9dbe](https://github.com/inference-gateway/tokenless/commit/93a9dbe07e1e282e9dbf6ff3ae87718c934a49d7))
+* **deps:** bump github.com/anthropics/anthropic-sdk-go in /examples ([#70](https://github.com/inference-gateway/tokenless/issues/70)) ([0e375b7](https://github.com/inference-gateway/tokenless/commit/0e375b71585e3f292fd201f4bb1bf5828cf32554))
+* **deps:** bump github.com/inference-gateway/sdk in /examples ([#71](https://github.com/inference-gateway/tokenless/issues/71)) ([e0c605f](https://github.com/inference-gateway/tokenless/commit/e0c605fac69879710d459074aea46ef0d2161b8c))
+* **deps:** bump github.com/openai/openai-go/v3 in /examples ([#72](https://github.com/inference-gateway/tokenless/issues/72)) ([77fc387](https://github.com/inference-gateway/tokenless/commit/77fc387ea9d911e3e25bea39c89008c5689451ee))
+* **deps:** bump Go toolchain to 1.26.8 ([#74](https://github.com/inference-gateway/tokenless/issues/74)) ([8972010](https://github.com/inference-gateway/tokenless/commit/8972010ace15827051ad178a010100344b12bef3))
+
 ## [0.9.0](https://github.com/inference-gateway/tokenless/compare/v0.8.0...v0.9.0) (2026-09-22)
 
 ### ✨ Features
