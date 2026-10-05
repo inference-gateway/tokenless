@@ -120,9 +120,20 @@ func TestSomething(t *testing.T) {
 ```
 
 **2. Standalone binary** - for any agent in any language; point its base URL
-at the mock:
+at the mock. Download the prebuilt asset for your platform from the
+[releases page](https://github.com/inference-gateway/tokenless/releases) -
+linux/darwin/windows for amd64/arm64 (Windows assets end in `.exe`), verify it
+against `checksums.txt`, and start it - no Go toolchain required:
 
 ```bash
+curl -fsSLO https://github.com/inference-gateway/tokenless/releases/latest/download/tokenless-linux-amd64
+curl -fsSLO https://github.com/inference-gateway/tokenless/releases/latest/download/checksums.txt
+sha256sum --check --ignore-missing checksums.txt
+chmod +x tokenless-linux-amd64
+tokenless-linux-amd64 --port 8080 --scenarios scenarios.yaml
+# tokenless -version prints the release tag the binary was built from
+
+# or with a Go toolchain:
 go run github.com/inference-gateway/tokenless/cmd/tokenless@latest \
   --port 8080 --scenarios scenarios.yaml
 # or: TOKENLESS_SCENARIOS=scenarios.yaml tokenless --port 8080

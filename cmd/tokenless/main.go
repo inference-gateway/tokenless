@@ -21,12 +21,22 @@ import (
 	"github.com/inference-gateway/tokenless/gateway"
 )
 
+// version is stamped at release time via -ldflags "-X main.version=v..." so
+// harnesses can pin which mock build they are talking to.
+var version = "dev"
+
 func main() {
 	host := flag.String("host", "127.0.0.1", "host/interface to bind (use 0.0.0.0 in a container)")
 	port := flag.Int("port", 0, "port to listen on (0 picks a free port)")
 	scenarios := flag.String("scenarios", "", "path to a scenarios YAML file (default: $TOKENLESS_SCENARIOS, then the built-in library)")
 	model := flag.String("model", "", "override the OpenAI model id on /v1/models (use a bare id like gpt-4o when sitting behind a real gateway)")
+	showVersion := flag.Bool("version", false, "print the version and exit")
 	flag.Parse()
+
+	if *showVersion {
+		fmt.Println(version)
+		return
+	}
 
 	defs, err := loadScenarios(*scenarios)
 	if err != nil {
