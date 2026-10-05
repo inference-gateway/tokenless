@@ -27,8 +27,8 @@ github.com/oapi-codegen/nullable v1.1.0 h1:eAh8JVc5430VtYVnq00Hrbpag9PFRGWLjxR1/
 github.com/oapi-codegen/nullable v1.1.0/go.mod h1:KUZ3vUzkmEKY90ksAmit2+5juDIhIZhfDl+0PwOQlFY=
 github.com/oapi-codegen/runtime v1.7.0 h1:t7358VYPvNbWJ9gdAkIK/smVeHpBf6yp8VTsaZsb/7k=
 github.com/oapi-codegen/runtime v1.7.0/go.mod h1:GwV7hC2hviaMzj+ITfHVRESK5J2W/GefVwIND/bMGvU=
-github.com/openai/openai-go/v3 v3.66.0 h1:hykUFik2rqpkKf8O2bc41OpSZuVA1lGFUu+UfjvYn1k=
-github.com/openai/openai-go/v3 v3.66.0/go.mod h1:+dSPa+nbX+dNoXg1jecMnVpgRP+E/5IBA6Jiz9Pc8WM=
+github.com/openai/openai-go/v3 v3.70.0 h1:mfYOmcoTJeb/hTcZUyKelluNnb1ApkziYg/Li8afZTQ=
+github.com/openai/openai-go/v3 v3.70.0/go.mod h1:+dSPa+nbX+dNoXg1jecMnVpgRP+E/5IBA6Jiz9Pc8WM=
 github.com/pb33f/ordered-map/v2 v2.3.1 h1:5319HDO0aw4DA4gzi+zv4FXU9UlSs3xGZ40wcP1nBjY=
 github.com/pb33f/ordered-map/v2 v2.3.1/go.mod h1:qxFQgd0PkVUtOMCkTapqotNgzRhMPL7VvaHKbd1HnmQ=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
