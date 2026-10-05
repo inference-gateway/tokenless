@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.10.0](https://github.com/inference-gateway/tokenless/compare/v0.9.1...v0.10.0) (2026-10-05)
+
+### ✨ Features
+
+* **cmd/tokenless:** ship prebuilt release binaries with -version stamping ([#76](https://github.com/inference-gateway/tokenless/issues/76)) ([c007cd9](https://github.com/inference-gateway/tokenless/commit/c007cd9d07acef0a9c1cd6fb04e8aa5b7d5a6296))
+
+### 🔧 Miscellaneous
+
+* **deps:** bump github.com/anthropics/anthropic-sdk-go in /examples ([#78](https://github.com/inference-gateway/tokenless/issues/78)) ([9a565bf](https://github.com/inference-gateway/tokenless/commit/9a565bfd20fc2cce1bb3bc732b0abda4efcafc1e))
+* **deps:** bump github.com/inference-gateway/sdk in /examples ([#79](https://github.com/inference-gateway/tokenless/issues/79)) ([fa0cd7a](https://github.com/inference-gateway/tokenless/commit/fa0cd7a5d7e220fc6dcc04449fe0fe70a498c08b))
+* **deps:** bump github.com/openai/openai-go/v3 from 3.66.0 to 3.70.0 in /examples ([#80](https://github.com/inference-gateway/tokenless/issues/80)) ([e3486fe](https://github.com/inference-gateway/tokenless/commit/e3486fe3001ffd7c5bcdddb0390209c6ac614f27))
+* **tokenless:** add .editorconfig enforcing final newline ([#77](https://github.com/inference-gateway/tokenless/issues/77)) ([60ad98d](https://github.com/inference-gateway/tokenless/commit/60ad98d04627e8156cc00fe06c8c6544879d572d))
+* update infer-action version in workflow ([79f9dd2](https://github.com/inference-gateway/tokenless/commit/79f9dd28a2b82fe03e61da6d89706263d056aee1))
+
 ## [0.9.1](https://github.com/inference-gateway/tokenless/compare/v0.9.0...v0.9.1) (2026-10-04)
 
 ### 🔧 Miscellaneous
