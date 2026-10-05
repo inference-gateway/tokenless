@@ -34,10 +34,6 @@ func main() {
 			client := openai.NewClient(
 				option.WithBaseURL(baseURL),
 				option.WithAPIKey("tokenless"),
-				// openai-go v3.69+ requires HTTPS for authenticated requests;
-				// WithUnsafeAllowHTTP opts in for local loopback gateways
-				// (the tokenless mock, a dev gateway). Remote endpoints must
-				// still use HTTPS.
 				option.WithUnsafeAllowHTTP(),
 			)
 			resp, err := client.Chat.Completions.New(context.Background(), openai.ChatCompletionNewParams{
