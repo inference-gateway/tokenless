@@ -34,6 +34,7 @@ func main() {
 			client := openai.NewClient(
 				option.WithBaseURL(baseURL),
 				option.WithAPIKey("tokenless"),
+				option.WithUnsafeAllowHTTP(),
 			)
 			resp, err := client.Chat.Completions.New(context.Background(), openai.ChatCompletionNewParams{
 				Model:    openai.ChatModel(model),

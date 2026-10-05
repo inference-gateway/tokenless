@@ -1,7 +1,8 @@
 // Testing an app built on the official OpenAI Go client: point the client's
 // base URL at tokenless via StartMock and nothing else changes. Your
 // production code keeps constructing the client from a config value; the test
-// sets that value to the mock's URL.
+// sets that value to the mock's URL. WithUnsafeAllowHTTP opts in for plain HTTP
+// to loopback, which openai-go v3.69+ requires for authenticated requests.
 package main
 
 import (
@@ -21,6 +22,7 @@ func TestOpenAIClientSync(t *testing.T) {
 	client := openai.NewClient(
 		option.WithBaseURL(mock.URL+"/v1"),
 		option.WithAPIKey("tokenless"),
+		option.WithUnsafeAllowHTTP(),
 	)
 
 	resp, err := client.Chat.Completions.New(context.Background(), openai.ChatCompletionNewParams{
@@ -37,6 +39,7 @@ func TestOpenAIClientStream(t *testing.T) {
 	client := openai.NewClient(
 		option.WithBaseURL(mock.URL+"/v1"),
 		option.WithAPIKey("tokenless"),
+		option.WithUnsafeAllowHTTP(),
 	)
 
 	stream := client.Chat.Completions.NewStreaming(context.Background(), openai.ChatCompletionNewParams{
