@@ -51,10 +51,24 @@ plugins:
 
   - - '@semantic-release/exec'
     - verifyConditions: 'go mod tidy'
+      verifyReleaseCmd: |
+        if [ -n "$GITHUB_OUTPUT" ]; then
+          {
+            echo "version=${nextRelease.version}"
+            echo "published=true"
+          } >> "$GITHUB_OUTPUT"
+        fi
 
   - - '@semantic-release/github'
     - assets:
         - path: CHANGELOG.md
+        - path: dist/tokenless-linux-amd64
+        - path: dist/tokenless-linux-arm64
+        - path: dist/tokenless-darwin-amd64
+        - path: dist/tokenless-darwin-arm64
+        - path: dist/tokenless-windows-amd64.exe
+        - path: dist/tokenless-windows-arm64.exe
+        - path: dist/checksums.txt
       releasedLabels: ['released']
       releaseNameTemplate: '🚀 Version ${nextRelease.version}'
       successCommentCondition: 'false'
