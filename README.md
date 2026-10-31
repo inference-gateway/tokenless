@@ -137,6 +137,20 @@ tokenless-linux-amd64 --port 8080 --scenarios scenarios.yaml
 go run github.com/inference-gateway/tokenless/cmd/tokenless@latest \
   --port 8080 --scenarios scenarios.yaml
 # or: TOKENLESS_SCENARIOS=scenarios.yaml tokenless --port 8080
+
+# HTTPS or mTLS - with a cert pair set the readiness line prints an https:// URL:
+tokenless-linux-amd64 --port 8443 \
+  --tls-cert server.crt --tls-key server.key \
+  --tls-client-ca clients-ca.crt
+```
+
+`--tls-cert`/`--tls-key` (env: `TOKENLESS_TLS_CERT`/`TOKENLESS_TLS_KEY`) serve
+HTTPS from the same scenario engine, and `--tls-client-ca`
+(`TOKENLESS_TLS_CLIENT_CA`) additionally requires clients to present a
+certificate signed by that CA bundle - mTLS, verified at the handshake. The
+flags must be configured as a set (`--tls-client-ca` needs both) or the binary
+exits with a clear error. `examples/06-standalone-binary` run a TLS request,
+an mTLS request with a valid client certificate, and one rejected without it.
 ```
 
 **3. Via your app's own mock switch** - an app can embed tokenless and expose
@@ -220,7 +234,9 @@ Failures are surfaced three ways:
 ## Packages
 
 - `tokenless` (root) - Go test helpers: `StartMock` (returns `*Mock` with `URL`
-  and `AssertExpectations`), `Orchestrator`/`Orchestrator.Run` (hermetic
+  and `AssertExpectations`), `StartMockTLS` (the same over TLS, on
+  `httptest.NewTLSServer`, with the mock's CA in `Mock.CA` for building
+  trusting clients), `Orchestrator`/`Orchestrator.Run` (hermetic
   subprocess runs with caller-supplied env), `BuildBinary` (build once in
   TestMain), `JSONLines`/`ContentsByRole`/`StatusOfType` (NDJSON assertions),
   and tmux TUI drivers (`SendKeys`, `CapturePane`, `WaitForPane`).
