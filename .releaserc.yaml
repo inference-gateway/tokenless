@@ -69,12 +69,11 @@ plugins:
         - path: dist/tokenless-windows-amd64.exe
         - path: dist/tokenless-windows-arm64.exe
         - path: dist/checksums.txt
-      releasedLabels: ['released']
+      releasedLabels: ["<%= nextRelease.channel === 'rc' ? 'rc' : 'released' %>"]
       releaseNameTemplate: '🚀 Version ${nextRelease.version}'
       successCommentCondition: 'false'
       labels:
-        - "<%= nextRelease.channel === 'rc' ? 'prerelease' : 'release' %>"
-        - "<%= nextRelease.channel === 'rc' ? 'rc' : '' %>"
+        - bug
 
   - - '@semantic-release/git'
     - assets:
