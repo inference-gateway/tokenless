@@ -2,7 +2,8 @@
 // standalone binary for manual testing and terminal-automation harnesses.
 // Go tests import the gateway package in-process instead.
 //
-// The first stdout line is the readiness protocol for harnesses:
+// The first stdout line is the readiness protocol for harnesses
+// (prints https:// when the TLS flags are supplied):
 //
 //	tokenless listening on http://127.0.0.1:<port>
 //
@@ -11,6 +12,9 @@
 package main
 
 import (
+	"crypto/tls"
+	"crypto/x509"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -30,6 +34,9 @@ func main() {
 	port := flag.Int("port", 0, "port to listen on (0 picks a free port)")
 	scenarios := flag.String("scenarios", "", "path to a scenarios YAML file (default: $TOKENLESS_SCENARIOS, then the built-in library)")
 	model := flag.String("model", "", "override the OpenAI model id on /v1/models (use a bare id like gpt-4o when sitting behind a real gateway)")
+	tlsCert := flag.String("tls-cert", "", "path to the server TLS certificate (PEM); enables HTTPS (default: $TOKENLESS_TLS_CERT)")
+	tlsKey := flag.String("tls-key", "", "path to the matching server TLS private key (PEM) (default: $TOKENLESS_TLS_KEY)")
+	tlsCA := flag.String("tls-client-ca", "", "path to a CA bundle (PEM) clients must authenticate against (default: $TOKENLESS_TLS_CLIENT_CA)")
 	showVersion := flag.Bool("version", false, "print the version and exit")
 	flag.Parse()
 
@@ -43,12 +50,25 @@ func main() {
 		log.Fatal(err)
 	}
 
+	tlsCfg, err := buildTLS(resolveEnv(*tlsCert, "TOKENLESS_TLS_CERT"),
+		resolveEnv(*tlsKey, "TOKENLESS_TLS_KEY"),
+		resolveEnv(*tlsCA, "TOKENLESS_TLS_CLIENT_CA"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	ln, err := net.Listen("tcp", fmt.Sprintf("%s:%d", *host, *port))
 	if err != nil {
 		log.Fatalf("listening: %v", err)
 	}
 
-	fmt.Printf("tokenless listening on http://%s\n", ln.Addr())
+	scheme := "http"
+	if tlsCfg != nil {
+		scheme = "https"
+		ln = tls.NewListener(ln, tlsCfg)
+	}
+
+	fmt.Printf("tokenless listening on %s://%s\n", scheme, ln.Addr())
 	srv := gateway.New(defs)
 	srv.Model = *model
 	if err := http.Serve(ln, logRequests(srv)); err != nil {
@@ -64,6 +84,49 @@ func loadScenarios(path string) (*gateway.ScenarioFile, error) {
 		return gateway.Default(), nil
 	}
 	return gateway.LoadFile(path)
+}
+
+// resolveEnv returns env instead of value when the flag itself is empty,
+// mirroring how --scenarios falls back to $TOKENLESS_SCENARIOS.
+func resolveEnv(value, env string) string {
+	if value == "" {
+		return os.Getenv(env)
+	}
+	return value
+}
+
+// buildTLS returns nil, nil (plain HTTP) when nothing is configured, an
+// HTTPS config for a cert/key pair, and an mTLS config requiring verified
+// client certificates when a client CA is added.
+func buildTLS(certPath, keyPath, caPath string) (*tls.Config, error) {
+	if certPath == "" && keyPath == "" && caPath == "" {
+		return nil, nil
+	}
+	if (certPath == "") != (keyPath == "") {
+		return nil, errors.New("--tls-cert and --tls-key must be provided together")
+	}
+	if caPath != "" && certPath == "" {
+		return nil, errors.New("--tls-client-ca requires --tls-cert and --tls-key")
+	}
+	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
+	if err != nil {
+		return nil, fmt.Errorf("loading TLS certificate: %w", err)
+	}
+	cfg := &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12}
+	if caPath == "" {
+		return cfg, nil
+	}
+	pem, err := os.ReadFile(caPath)
+	if err != nil {
+		return nil, fmt.Errorf("reading client CA %s: %w", caPath, err)
+	}
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(pem) {
+		return nil, fmt.Errorf("parsing client CA %s: no certificates found", caPath)
+	}
+	cfg.ClientCAs = pool
+	cfg.ClientAuth = tls.RequireAndVerifyClientCert
+	return cfg, nil
 }
 
 // logRequests prints one line per request to stderr so harnesses can follow
