@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.11.0](https://github.com/inference-gateway/tokenless/compare/v0.10.0...v0.11.0) (2026-11-01)
+
+### ✨ Features
+
+* **tokenless:** TLS and mTLS for the standalone server and test mocks ([#91](https://github.com/inference-gateway/tokenless/issues/91)) ([9756a61](https://github.com/inference-gateway/tokenless/commit/9756a61655bafc9633c9a0144c85c717b1e7b774))
+
+### 👷 CI
+
+* **release:** label issues and PRs shipped in an rc with rc ([#89](https://github.com/inference-gateway/tokenless/issues/89)) ([f2cc1e1](https://github.com/inference-gateway/tokenless/commit/f2cc1e1e358aa302d13adfd0652f1e774d0e9ed4))
+
+### 🔧 Miscellaneous
+
+* **deps:** bump github.com/anthropics/anthropic-sdk-go in /examples ([#87](https://github.com/inference-gateway/tokenless/issues/87)) ([a802c17](https://github.com/inference-gateway/tokenless/commit/a802c17c4d37517f5828deea1eccfdd646b22a0c))
+* **deps:** bump github.com/inference-gateway/sdk in /examples ([#86](https://github.com/inference-gateway/tokenless/issues/86)) ([58d1ddb](https://github.com/inference-gateway/tokenless/commit/58d1ddb89c5c6086b099e12b52fffcdb661fc2f9))
+* **deps:** bump github.com/openai/openai-go/v3 in /examples ([#88](https://github.com/inference-gateway/tokenless/issues/88)) ([162245f](https://github.com/inference-gateway/tokenless/commit/162245f80b030126a2ad863402d0f0577734704d))
+
 ## [0.10.0](https://github.com/inference-gateway/tokenless/compare/v0.9.1...v0.10.0) (2026-10-05)
 
 ### ✨ Features
