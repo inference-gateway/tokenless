@@ -232,11 +232,12 @@ func TestModelsAndHealthEndpoints(t *testing.T) {
 
 	var models ListModelsResponse
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&models))
-	require.Len(t, models.Data, 4)
+	require.Len(t, models.Data, 5)
 	require.Equal(t, DefaultModel, models.Data[0].ID)
 	require.Equal(t, AnthropicModel, models.Data[1].ID)
 	require.Equal(t, ImageModel, models.Data[2].ID)
 	require.Equal(t, DeepseekModel, models.Data[3].ID)
+	require.Equal(t, DecisionModel, models.Data[4].ID)
 
 	health, err := http.Get(ts.URL + "/v1/health")
 	require.NoError(t, err)

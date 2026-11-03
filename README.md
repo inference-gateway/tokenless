@@ -96,6 +96,7 @@ scenarios:
 | `POST /v1/images/generations`, `POST /v1/images/edits`| Canned 1x1 PNG so decode-and-save paths run end to end                                                     | 
 | `POST /v1/audio/music`                                | Canned clip covering `duration_seconds` (default 1s), following `response_format`: `mp3` (default) MPEG 44.1 kHz 128 kbps mono silence, `pcm` the samples without the WAV header; `wav` and other formats → 400 (ElevenLabs cannot produce `wav` for sfx/music) | 
 | `POST /v1/audio/sfx`                                  | Same `response_format`-driven clip selection as `/v1/audio/music`                            |                                                                                                                                                                    
+| `POST /v1/decisions`                                  | OpenAI-compatible Decisions API: one answer per question (predicate probability 0.95, first choice, score 0) or scripted per request by the top-level `decisions:` rules matched against the input |
 | `POST /v1/videos`, `GET /v1/videos/{id}`, `GET /v1/videos/{id}/content` | Videos API job lifecycle: create records the multipart form and returns a `queued` job; each poll advances `queued` → `in_progress` → `completed` (or `failed` via `videos.fail`); content serves a canned black-frame MP4 once `completed`, 404 before; scriptable via the top-level `videos:` block (`polls_until_complete`, `fail`, poll `error`/`stall`) | 
 | `GET /v1/models`                                      | Model list with pricing and context-window metadata                                                        |  
 | `GET /v1/expect`                                      | JSON report of recorded expectation failures; `200` when clean, `412` otherwise |
@@ -263,3 +264,19 @@ Contributions are welcome. Open an issue or a pull request on
 
 This project is licensed under the Apache 2.0 License - see the
 [LICENSE](LICENSE) file for details.
+
+### Scripting decisions
+
+`POST /v1/decisions` answers every question with a safe default. To script a rejection, add
+top-level `decisions:` rules, matched (first wins) against the request input rendered as text:
+
+```yaml
+decisions:
+  - match: 'rm -rf|curl .*\| sh'
+    probability: 0.05 # predicate answers
+    choice: destructive # choice answers (default: the first option)
+    score: 2 # score answers (default: 0)
+```
+
+The built-in model list includes `mock/ollama_cloud/clef:27b` with `decisions` among its output
+modalities, so clients that check the listing before calling the endpoint find a decision model.

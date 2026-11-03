@@ -1,7 +1,7 @@
 // Package gateway implements a hermetic, deterministic mock of the LLM
 // API surface agent apps consume: GET /v1/models, POST /v1/chat/completions
 // (sync JSON and SSE streaming), POST /v1/messages (Anthropic-native),
-// POST /v1/images/generations and /v1/images/edits, POST /v1/audio/music,
+// POST /v1/images/generations and /v1/images/edits, POST /v1/decisions, POST /v1/audio/music,
 // POST /v1/audio/sfx, the Videos API job lifecycle (POST /v1/videos,
 // GET /v1/videos/{id}, GET /v1/videos/{id}/content), and GET /v1/health.
 //
@@ -46,6 +46,10 @@ const ImageModel = "mock/openai/gpt-image-2"
 // DeepseekModel is a text-only model for testing text-only modality filtering.
 const DeepseekModel = "mock/deepseek/deepseek-v4-flash"
 
+// DecisionModel is the built-in decision model: it lists decisions among its
+// output modalities and answers POST /v1/decisions.
+const DecisionModel = "mock/ollama_cloud/clef:27b"
+
 // Metadata advertised for every model on /v1/models: the gateway extensions
 // (context_window, pricing) are always populated so cost accounting in the
 // app under test sees real-looking numbers.
@@ -85,6 +89,8 @@ type Recorded struct {
 	SFXBody *CreateSFXRequest
 	// VideoBody is the full decoded multipart form for POST /v1/videos.
 	VideoBody *CreateVideoRequest
+	// DecisionsBody is the full decoded request for POST /v1/decisions.
+	DecisionsBody *CreateDecisionRequest
 	// RawBody is the request body verbatim, so apps can decode it with their
 	// own richer types when the minimal ones above are not enough.
 	RawBody json.RawMessage
@@ -178,10 +184,17 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					ContextWindow: &contextWindow, Pricing: &pricing,
 					Modalities: &ModelModalities{Input: []Modality{"text"}, Output: []Modality{"text"}},
 				},
+				{
+					ID: DecisionModel, Object: "model", OwnedBy: "ollama", ServedBy: "ollama_cloud",
+					ContextWindow: &contextWindow, Pricing: &pricing,
+					Modalities: &ModelModalities{Input: []Modality{"text", "image"}, Output: []Modality{"text", "decisions"}},
+				},
 			},
 		})
 	case r.Method == http.MethodPost && (r.URL.Path == "/v1/images/generations" || r.URL.Path == "/v1/images/edits"):
 		s.handleImages(w, r)
+	case r.Method == http.MethodPost && r.URL.Path == "/v1/decisions":
+		s.handleDecisions(w, r)
 	case r.Method == http.MethodPost && r.URL.Path == "/v1/audio/music":
 		s.handleMusic(w, r)
 	case r.Method == http.MethodPost && r.URL.Path == "/v1/audio/sfx":

@@ -63,6 +63,19 @@ models:
       currency: "USD"
       source: "provider"
     modalities: { input: [text], output: [text] }
+  - id: mock/ollama_cloud/clef:27b
+    object: model
+    owned_by: ollama
+    served_by: ollama_cloud
+    context_window: { tokens: 65536, source: "provider" }
+    pricing:
+      input_per_token: "0.00000024"
+      output_per_token: "0"
+      cache_read_per_token: "0"
+      cache_write_per_token: "0"
+      currency: "USD"
+      source: "provider"
+    modalities: { input: [text, image], output: [text, decisions] }
 
 fallback:
   content: "Done."

@@ -46,6 +46,10 @@ type ScenarioFile struct {
 	// count, failure outcome, poll error/stall injection). When nil the
 	// defaults apply.
 	Videos *VideoConfig `yaml:"videos,omitempty"`
+	// Decisions scripts the answers of POST /v1/decisions by matching the
+	// request input. Without it every predicate answers 0.95, every choice its
+	// first option and every score 0.
+	Decisions []DecisionRule `yaml:"decisions,omitempty"`
 }
 
 // VideoConfig is the optional top-level `videos:` block scripting the mocked
@@ -243,6 +247,18 @@ func LoadFile(path string) (*ScenarioFile, error) {
 func (f *ScenarioFile) validate() error {
 	if err := f.Fallback.validate("fallback"); err != nil {
 		return err
+	}
+
+	for i := range f.Decisions {
+		rule := &f.Decisions[i]
+		re, err := regexp.Compile(rule.Match)
+		if err != nil {
+			return fmt.Errorf("decisions[%d]: invalid match regex: %w", i, err)
+		}
+		rule.re = re
+		if p := rule.Probability; p != nil && (*p < 0 || *p > 1) {
+			return fmt.Errorf("decisions[%d]: probability must be between 0 and 1", i)
+		}
 	}
 
 	for name, def := range f.Tools {
