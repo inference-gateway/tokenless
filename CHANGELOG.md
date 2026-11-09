@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.12.1](https://github.com/inference-gateway/tokenless/compare/v0.12.0...v0.12.1) (2026-11-09)
+
+### ♻️ Improvements
+
+* bump go toolchain to 1.27.3 ([#95](https://github.com/inference-gateway/tokenless/issues/95)) ([14aba55](https://github.com/inference-gateway/tokenless/commit/14aba55ae3f9b06cc5d4815771119a4e794d805f))
+
+### 🔧 Miscellaneous
+
+* **deps:** bump github.com/inference-gateway/sdk in /examples ([#93](https://github.com/inference-gateway/tokenless/issues/93)) ([59453a4](https://github.com/inference-gateway/tokenless/commit/59453a40807423bc885a6a52bceac7f99eb5c488))
+
 ## [0.12.0](https://github.com/inference-gateway/tokenless/compare/v0.11.0...v0.12.0) (2026-11-03)
 
 ### ✨ Features
