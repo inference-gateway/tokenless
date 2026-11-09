@@ -903,8 +903,8 @@ func buildMP4() []byte {
 		mp4U16(0x0100, 0, 0),                 // volume, reserved
 		mp4U32(0, 0),                         // reserved
 		mp4U32(0x00010000, 0, 0, 0, 0x00010000, 0, 0, 0, 0x40000000), // unity matrix
-		mp4U32(0, 0, 0, 0, 0, 0),                                     // pre_defined
-		mp4U32(2),                                                    // next_track_ID
+		mp4U32(0, 0, 0, 0, 0, 0), // pre_defined
+		mp4U32(2),                // next_track_ID
 	)
 
 	tkhd := mp4Box("tkhd", []byte{0, 0, 0, 3}, // version 0, flags 3 (enabled | in movie)
