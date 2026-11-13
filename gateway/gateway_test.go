@@ -628,6 +628,61 @@ func TestSFXEndpoint(t *testing.T) {
 	}
 }
 
+func TestSpeechEndpoint(t *testing.T) {
+	tests := []struct {
+		name       string
+		body       string
+		wantStatus int
+		wantCT     string
+		wantLen    int
+		wantFormat string
+	}{
+		{"wav carries a RIFF header", `{"model": "qwen3-tts", "input": "hello there", "voice": "", "response_format": "wav"}`, http.StatusOK, "audio/wav", 44 + 88200, "wav"},
+		{"unset defaults to mp3", `{"model": "qwen3-tts", "input": "hello there", "voice": ""}`, http.StatusOK, "audio/mpeg", 39 * 417, ""},
+		{"pcm is headerless", `{"model": "qwen3-tts", "input": "hello there", "voice": "", "response_format": "pcm"}`, http.StatusOK, "audio/pcm", 88200, "pcm"},
+		{"opus is rejected", `{"model": "qwen3-tts", "input": "hello there", "voice": "", "response_format": "opus"}`, http.StatusBadRequest, "", 0, "opus"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := New(Default())
+			ts := httptest.NewServer(srv)
+			defer ts.Close()
+
+			resp, err := http.Post(ts.URL+"/v1/audio/speech", "application/json", strings.NewReader(tt.body))
+			require.NoError(t, err)
+			body, err := io.ReadAll(resp.Body)
+			_ = resp.Body.Close()
+			require.NoError(t, err)
+			require.Equal(t, tt.wantStatus, resp.StatusCode)
+
+			if tt.wantStatus == http.StatusOK {
+				require.Equal(t, tt.wantCT, resp.Header.Get("Content-Type"))
+				require.Len(t, body, tt.wantLen)
+				if tt.wantCT == "audio/wav" {
+					require.Equal(t, "RIFF", string(body[:4]))
+					require.Equal(t, "WAVE", string(body[8:12]))
+				}
+			} else {
+				var e struct {
+					Error string `json:"error"`
+				}
+				require.NoError(t, json.Unmarshal(body, &e))
+				require.Contains(t, e.Error, `response_format "`+tt.wantFormat+`"`)
+				require.Contains(t, e.Error, "supported formats: mp3, pcm, wav")
+			}
+
+			reqs := srv.Requests()
+			require.Len(t, reqs, 1)
+			require.Equal(t, "/v1/audio/speech", reqs[0].Endpoint)
+			require.Equal(t, "qwen3-tts", reqs[0].Model)
+			require.Equal(t, "hello there", reqs[0].SpeechBody.Input)
+			if reqs[0].SpeechBody.ResponseFormat != nil {
+				require.Equal(t, tt.wantFormat, *reqs[0].SpeechBody.ResponseFormat)
+			}
+		})
+	}
+}
+
 // postVideoForm posts a multipart /v1/videos form with one model and one
 // prompt field.
 func postVideoForm(t *testing.T, baseURL, model, prompt string) *http.Response {

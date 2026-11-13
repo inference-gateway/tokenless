@@ -2,7 +2,7 @@
 // API surface agent apps consume: GET /v1/models, POST /v1/chat/completions
 // (sync JSON and SSE streaming), POST /v1/messages (Anthropic-native),
 // POST /v1/images/generations and /v1/images/edits, POST /v1/decisions, POST /v1/audio/music,
-// POST /v1/audio/sfx, the Videos API job lifecycle (POST /v1/videos,
+// POST /v1/audio/sfx, POST /v1/audio/speech, the Videos API job lifecycle (POST /v1/videos,
 // GET /v1/videos/{id}, GET /v1/videos/{id}/content), and GET /v1/health.
 //
 // Scenario resolution is stateless: every request carries the full message
@@ -87,6 +87,8 @@ type Recorded struct {
 	MusicBody *CreateMusicRequest
 	// SFXBody is the full decoded request for /v1/audio/sfx.
 	SFXBody *CreateSFXRequest
+	// SpeechBody is the full decoded request for /v1/audio/speech.
+	SpeechBody *CreateSpeechRequest
 	// VideoBody is the full decoded multipart form for POST /v1/videos.
 	VideoBody *CreateVideoRequest
 	// DecisionsBody is the full decoded request for POST /v1/decisions.
@@ -199,6 +201,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.handleMusic(w, r)
 	case r.Method == http.MethodPost && r.URL.Path == "/v1/audio/sfx":
 		s.handleSFX(w, r)
+	case r.Method == http.MethodPost && r.URL.Path == "/v1/audio/speech":
+		s.handleSpeech(w, r)
 	case r.Method == http.MethodPost && r.URL.Path == "/v1/videos":
 		s.handleVideos(w, r)
 	case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/v1/videos/"):
@@ -599,7 +603,7 @@ func (s *Server) handleMusic(w http.ResponseWriter, r *http.Request) {
 	})
 	s.mu.Unlock()
 
-	writeAudioClip(w, req.Model, req.ResponseFormat, req.DurationSeconds)
+	writeAudioClip(w, req.Model, req.ResponseFormat, req.DurationSeconds, effectFormats)
 }
 
 // mp3Clip renders silence as identical MPEG-1 Layer III frames (44.1 kHz,
@@ -647,7 +651,37 @@ func (s *Server) handleSFX(w http.ResponseWriter, r *http.Request) {
 	})
 	s.mu.Unlock()
 
-	writeAudioClip(w, req.Model, req.ResponseFormat, req.DurationSeconds)
+	writeAudioClip(w, req.Model, req.ResponseFormat, req.DurationSeconds, effectFormats)
+}
+
+// handleSpeech answers POST /v1/audio/speech with a one-second canned clip in
+// the requested response_format (mp3 unless the request says otherwise; wav
+// is what text-to-speech tools ask for) so they run their save-to-disk path
+// end to end. The request is recorded, so tests can assert model, input and
+// voice.
+func (s *Server) handleSpeech(w http.ResponseWriter, r *http.Request) {
+	raw, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, `{"error":"reading request body"}`, http.StatusBadRequest)
+		return
+	}
+	var req CreateSpeechRequest
+	if err := json.Unmarshal(raw, &req); err != nil {
+		http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+		return
+	}
+
+	s.mu.Lock()
+	s.reqs = append(s.reqs, Recorded{
+		Endpoint:   r.URL.Path,
+		Provider:   r.URL.Query().Get("provider"),
+		Model:      req.Model,
+		SpeechBody: &req,
+		RawBody:    raw,
+	})
+	s.mu.Unlock()
+
+	writeAudioClip(w, req.Model, req.ResponseFormat, nil, speechFormats)
 }
 
 // wavClip renders silence as a canonical 44-byte-header 16-bit mono 44.1 kHz
@@ -677,16 +711,28 @@ func wavClip(durationSeconds *float32) []byte {
 	return b
 }
 
+// The response_format values each audio endpoint serves: ElevenLabs cannot
+// produce wav for SFX or music (see inference-gateway/schemas#220), while
+// speech providers can.
+var (
+	effectFormats = []string{"mp3", "pcm"}
+	speechFormats = []string{"mp3", "pcm", "wav"}
+)
+
 // writeAudioClip writes the canned clip an audio endpoint serves, selected
 // by response_format: mp3 (or unset, the spec default) gets the MPEG clip,
-// pcm the same samples with the RIFF header stripped, and anything else
-// (wav included - ElevenLabs cannot produce it for SFX or music, see
-// inference-gateway/schemas#220) a 400 naming the format and the supported
-// list. duration_seconds drives the clip length in every format.
-func writeAudioClip(w http.ResponseWriter, model string, format *string, duration *float32) {
+// pcm the same samples with the RIFF header stripped, wav the samples with
+// it, and a format outside supported a 400 naming the format and the
+// supported list. duration_seconds drives the clip length in every format.
+func writeAudioClip(w http.ResponseWriter, model string, format *string, duration *float32, supported []string) {
 	f := "mp3"
 	if format != nil {
 		f = *format
+	}
+	if !slices.Contains(supported, f) {
+		msg := fmt.Sprintf("%s does not support response_format %q, supported formats: %s", model, f, strings.Join(supported, ", "))
+		http.Error(w, fmt.Sprintf(`{"error":%q}`, msg), http.StatusBadRequest)
+		return
 	}
 	switch f {
 	case "mp3":
@@ -695,9 +741,9 @@ func writeAudioClip(w http.ResponseWriter, model string, format *string, duratio
 	case "pcm":
 		w.Header().Set("Content-Type", "audio/pcm")
 		_, _ = w.Write(wavClip(duration)[44:])
-	default:
-		msg := fmt.Sprintf("%s does not support response_format %q, supported formats: mp3, pcm", model, f)
-		http.Error(w, fmt.Sprintf(`{"error":%q}`, msg), http.StatusBadRequest)
+	case "wav":
+		w.Header().Set("Content-Type", "audio/wav")
+		_, _ = w.Write(wavClip(duration))
 	}
 }
 
