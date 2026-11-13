@@ -20,7 +20,7 @@ the test expects — no API keys, no tokens, no nondeterminism.
 
 Endpoints: `POST /v1/chat/completions` (sync + SSE), `POST /v1/messages`          
 (Anthropic SSE), `POST /v1/images/generations` and `/v1/images/edits` (canned     
-1x1 PNG), `POST /v1/decisions` (one answer per question: predicate 0.95, first choice, score 0, or scripted by top-level `decisions:` rules matched against the input), `POST /v1/audio/music` and `POST /v1/audio/sfx` (canned clip following `response_format`: `mp3` default, headerless `pcm`; `wav` and other unsupported formats get a 400), 
+1x1 PNG), `POST /v1/decisions` (one answer per question: predicate 0.95, first choice, score 0, or scripted by top-level `decisions:` rules matched against the input), `POST /v1/audio/music` and `POST /v1/audio/sfx` (canned clip following `response_format`: `mp3` default, headerless `pcm`; `wav` and other unsupported formats get a 400), `POST /v1/audio/speech` (the same clip, with `wav` allowed as well), 
 the Videos API job lifecycle (`POST /v1/videos`, `GET /v1/videos/{id}` — one lifecycle step per poll, `GET /v1/videos/{id}/content` — canned MP4 once `completed`, 404 before),
 `GET /v1/models`, `GET /v1/health`.
 

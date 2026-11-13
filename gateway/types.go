@@ -254,6 +254,14 @@ type CreateSFXRequest struct {
 	ResponseFormat  *string  `json:"response_format,omitempty"`
 }
 
+// CreateSpeechRequest is the decoded /v1/audio/speech body.
+type CreateSpeechRequest struct {
+	Input          string  `json:"input"`
+	Model          string  `json:"model"`
+	ResponseFormat *string `json:"response_format,omitempty"`
+	Voice          string  `json:"voice"`
+}
+
 // VideoJobStatus is the lifecycle status of a mocked video job.
 type VideoJobStatus string
 
