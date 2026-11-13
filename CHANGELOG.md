@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.13.0](https://github.com/inference-gateway/tokenless/compare/v0.12.2...v0.13.0) (2026-11-13)
+
+### ✨ Features
+
+* **gateway:** serve POST /v1/audio/speech with a canned clip ([#98](https://github.com/inference-gateway/tokenless/issues/98)) ([45d49d0](https://github.com/inference-gateway/tokenless/commit/45d49d0b6d890543800c0da206a8423b3039e173))
+
 ## [0.12.2](https://github.com/inference-gateway/tokenless/compare/v0.12.1...v0.12.2) (2026-11-09)
 
 ### 🔧 Miscellaneous
