@@ -627,18 +627,29 @@ func mp3Clip(durationSeconds *float32) []byte {
 // handleSFX answers POST /v1/audio/sfx with a canned audio clip selected by
 // response_format (mp3 unless the request says otherwise, see writeAudioClip)
 // so sound-effect tools run their save-to-disk path end to end without a real
-// provider. The request is recorded like a completion, so tests can assert
-// the model, prompt and requested format.
+// provider. A multipart/form-data form scoring an uploaded video part
+// (schemas#314) is instead answered with the canned WAV; all of its fields
+// except model are accepted but ignored. The request is recorded like a
+// completion, so tests can assert the model, prompt and requested format.
 func (s *Server) handleSFX(w http.ResponseWriter, r *http.Request) {
-	raw, err := io.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, `{"error":"reading request body"}`, http.StatusBadRequest)
-		return
-	}
+	form := strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data")
 	var req CreateSFXRequest
-	if err := json.Unmarshal(raw, &req); err != nil {
-		http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
-		return
+	var raw json.RawMessage
+	if form {
+		if !s.readSFXVideo(w, r, &req) {
+			return
+		}
+	} else {
+		b, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, `{"error":"reading request body"}`, http.StatusBadRequest)
+			return
+		}
+		raw = b
+		if err := json.Unmarshal(raw, &req); err != nil {
+			http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+			return
+		}
 	}
 
 	s.mu.Lock()
@@ -651,7 +662,39 @@ func (s *Server) handleSFX(w http.ResponseWriter, r *http.Request) {
 	})
 	s.mu.Unlock()
 
+	if form {
+		w.Header().Set("Content-Type", "audio/wav")
+		_, _ = w.Write(wavClip(nil))
+		return
+	}
 	writeAudioClip(w, req.Model, req.ResponseFormat, req.DurationSeconds, effectFormats)
+}
+
+// readSFXVideo decodes the multipart form of a video-scoring SFX request into
+// req: model is parsed and the video part's filename and size are recorded for
+// assertions, every other field is accepted and ignored. A broken form or a
+// missing video part answers 400 with an error envelope, like the gateway.
+func (s *Server) readSFXVideo(w http.ResponseWriter, r *http.Request, req *CreateSFXRequest) bool {
+	if err := r.ParseMultipartForm(32 << 20); err != nil {
+		http.Error(w, `{"error":"invalid multipart form"}`, http.StatusBadRequest)
+		return false
+	}
+	req.Model = videoForm(r, "model")
+	for k := range r.MultipartForm.Value {
+		req.Fields = append(req.Fields, k)
+	}
+	for k := range r.MultipartForm.File {
+		req.Fields = append(req.Fields, k)
+	}
+	videos := r.MultipartForm.File["video"]
+	if len(videos) == 0 {
+		http.Error(w, `{"error":"The 'video' file is required to score a video."}`, http.StatusBadRequest)
+		return false
+	}
+	name, size := videos[0].Filename, videos[0].Size
+	req.VideoFilename = &name
+	req.VideoSize = &size
+	return true
 }
 
 // handleSpeech answers POST /v1/audio/speech with a one-second canned clip in
