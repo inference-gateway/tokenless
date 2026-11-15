@@ -50,8 +50,8 @@ always says exactly what your test expects.
   agent's real execution and approval paths.
 - 💥 **Failure Injection**: HTTP errors, stalled streams, and malformed SSE
   frames for the retry paths a real provider never tests.
-- 🧰 **Three Consumption Modes**: Go import, standalone binary, or an app-level
-  mock switch - any language, any harness.
+- 🧰 **Four Consumption Modes**: Go import, standalone binary, container image,
+  or an app-level mock switch - any language, any harness.
 - 💸 **Zero Cost**: A scenario costs the same to run one time or one million
   times: nothing.
 
@@ -153,9 +153,24 @@ certificate signed by that CA bundle - mTLS, verified at the handshake. The
 flags must be configured as a set (`--tls-client-ca` needs both) or the binary
 exits with a clear error. `examples/06-standalone-binary` run a TLS request,
 an mTLS request with a valid client certificate, and one rejected without it.
+
+**3. Container image** - the same mock with no Go toolchain; pull from the
+registry instead of downloading release assets. Every release publishes a
+multi-arch image (linux/amd64 + linux/arm64) to
+`ghcr.io/inference-gateway/tokenless`, tagged with the semantic-release
+version plus a floating `latest`. The entrypoint is the tokenless binary
+itself, so every server flag passes through unchanged - mount the scenario
+file and run:
+
+```bash
+docker run --rm -p 8080:8080 -v ./scenarios.yaml:/scenarios.yaml \
+  ghcr.io/inference-gateway/tokenless:v0.14.0 \
+  --host 0.0.0.0 --port 8080 --scenarios /scenarios.yaml
+# or the rolling tag: ghcr.io/inference-gateway/tokenless:latest
+# pin @sha256:<digest> for reproducible deployments
 ```
 
-**3. Via your app's own mock switch** - an app can embed tokenless and expose
+**4. Via your app's own mock switch** - an app can embed tokenless and expose
 it behind an environment variable, so anything that spawns the app gets the
 mock without writing a line of Go. The
 [infer CLI](https://github.com/inference-gateway/cli) does exactly this:
