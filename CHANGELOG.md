@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.14.0](https://github.com/inference-gateway/tokenless/compare/v0.13.0...v0.14.0) (2026-11-15)
+
+### ✨ Features
+
+* **gateway:** accept multipart video form on POST /v1/audio/sfx ([#100](https://github.com/inference-gateway/tokenless/issues/100)) ([afd991a](https://github.com/inference-gateway/tokenless/commit/afd991a1553ef38885bbb5feb69db798fc2a71a6))
+
 ## [0.13.0](https://github.com/inference-gateway/tokenless/compare/v0.12.2...v0.13.0) (2026-11-13)
 
 ### ✨ Features
