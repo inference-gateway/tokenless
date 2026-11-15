@@ -4,7 +4,24 @@ updates:
     directory: /
     schedule:
       interval: weekly
+      day: monday
+      time: "05:00"
+      timezone: Europe/Berlin
   - package-ecosystem: gomod
     directory: /examples
     schedule:
       interval: weekly
+      day: monday
+      time: "05:00"
+      timezone: Europe/Berlin
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "05:00"
+      timezone: Europe/Berlin
+    groups:
+      github-actions:
+        patterns:
+          - '*'
