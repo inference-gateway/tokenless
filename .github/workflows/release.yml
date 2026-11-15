@@ -269,5 +269,5 @@ jobs:
           build-args: |
             VERSION=v${{ needs.version.outputs.new_release_version }}
           tags: |
-            ghcr.io/${{ github.repository_owner }}/tokenless:v${{ needs.version.outputs.new_release_version }}
+            ghcr.io/${{ github.repository_owner }}/tokenless:${{ needs.version.outputs.new_release_version }}
             ghcr.io/${{ github.repository_owner }}/tokenless:latest

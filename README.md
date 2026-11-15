@@ -164,7 +164,7 @@ file and run:
 
 ```bash
 docker run --rm -p 8080:8080 -v ./scenarios.yaml:/scenarios.yaml \
-  ghcr.io/inference-gateway/tokenless:v0.14.0 \
+  ghcr.io/inference-gateway/tokenless:0.14.0 \
   --host 0.0.0.0 --port 8080 --scenarios /scenarios.yaml
 # or the rolling tag: ghcr.io/inference-gateway/tokenless:latest
 # pin @sha256:<digest> for reproducible deployments
