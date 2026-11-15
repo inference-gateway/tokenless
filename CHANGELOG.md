@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.15.0](https://github.com/inference-gateway/tokenless/compare/v0.14.0...v0.15.0) (2026-11-15)
+
+### ✨ Features
+
+* **release:** publish tokenless container image to ghcr.io ([#102](https://github.com/inference-gateway/tokenless/issues/102)) ([949312f](https://github.com/inference-gateway/tokenless/commit/949312f4e09748b2fd59e2f1ec9921be13170dbd))
+
+### 🔧 Miscellaneous
+
+* **deps:** update infer-action version to v0.59.8 ([91d5ac8](https://github.com/inference-gateway/tokenless/commit/91d5ac8ea8182204487e33f66e87b79cc060cfa2))
+
 ## [0.14.0](https://github.com/inference-gateway/tokenless/compare/v0.13.0...v0.14.0) (2026-11-15)
 
 ### ✨ Features
