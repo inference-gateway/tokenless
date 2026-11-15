@@ -1,6 +1,3 @@
-# syntax=docker/dockerfile:1
-# Multi-platform build: buildx compiles natively on the runner ($BUILDPLATFORM)
-# and cross-compiles for each target via GOOS/GOARCH, so no emulation is needed.
 FROM --platform=$BUILDPLATFORM golang:1.27.3-alpine AS build
 ARG TARGETOS TARGETARCH
 ARG VERSION=dev
