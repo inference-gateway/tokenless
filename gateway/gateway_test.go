@@ -678,7 +678,6 @@ func TestSFXVideoForm(t *testing.T) {
 	require.Equal(t, "clip.mov", *reqs[0].SFXBody.VideoFilename)
 	require.Equal(t, int64(len("FAKE-VIDEO-BYTES")), *reqs[0].SFXBody.VideoSize)
 
-	// A multipart request without a video part answers 400 and is not recorded.
 	var nb bytes.Buffer
 	nw := multipart.NewWriter(&nb)
 	require.NoError(t, nw.WriteField("model", "mirelo/sfx-2.0"))
