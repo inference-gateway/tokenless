@@ -628,6 +628,74 @@ func TestSFXEndpoint(t *testing.T) {
 	}
 }
 
+// TestSFXVideoForm covers the multipart video-scoring form: it is answered
+// with the canned WAV regardless of the form's ignored fields, the recorded
+// request exposes model, the form fields and the video part, and the gateway's
+// 400 for a missing video part is mirrored without recording the request.
+func TestSFXVideoForm(t *testing.T) {
+	var b bytes.Buffer
+	mw := multipart.NewWriter(&b)
+	for _, f := range []struct{ name, value string }{
+		{"model", "mirelo/sfx-2.0"},
+		{"prompt", "soft keyboard taps"},
+		{"duration_seconds", "3"},
+		{"start_offset_seconds", "1.5"},
+		{"preserve_speech", "true"},
+		{"output", "speech"},
+		{"response_format", "mp3"},
+	} {
+		require.NoError(t, mw.WriteField(f.name, f.value))
+	}
+	fw, err := mw.CreateFormFile("video", "clip.mov")
+	require.NoError(t, err)
+	_, err = fw.Write([]byte("FAKE-VIDEO-BYTES"))
+	require.NoError(t, err)
+	require.NoError(t, mw.Close())
+
+	srv := New(Default())
+	ts := httptest.NewServer(srv)
+	defer ts.Close()
+
+	resp, err := http.Post(ts.URL+"/v1/audio/sfx", mw.FormDataContentType(), &b)
+	require.NoError(t, err)
+	body, err := io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	require.NoError(t, err)
+
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.Equal(t, "audio/wav", resp.Header.Get("Content-Type"))
+	require.Equal(t, 44+88200, len(body), "the one-second canned WAV")
+
+	reqs := srv.Requests()
+	require.Len(t, reqs, 1)
+	require.Equal(t, "/v1/audio/sfx", reqs[0].Endpoint)
+	require.Equal(t, "mirelo/sfx-2.0", reqs[0].Model)
+	require.Equal(t, "mirelo/sfx-2.0", reqs[0].SFXBody.Model)
+	require.ElementsMatch(t, []string{
+		"model", "prompt", "duration_seconds", "start_offset_seconds",
+		"preserve_speech", "output", "response_format", "video",
+	}, reqs[0].SFXBody.Fields)
+	require.Equal(t, "clip.mov", *reqs[0].SFXBody.VideoFilename)
+	require.Equal(t, int64(len("FAKE-VIDEO-BYTES")), *reqs[0].SFXBody.VideoSize)
+
+	var nb bytes.Buffer
+	nw := multipart.NewWriter(&nb)
+	require.NoError(t, nw.WriteField("model", "mirelo/sfx-2.0"))
+	require.NoError(t, nw.Close())
+	resp, err = http.Post(ts.URL+"/v1/audio/sfx", nw.FormDataContentType(), &nb)
+	require.NoError(t, err)
+	body, err = io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	require.NoError(t, err)
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	var e struct {
+		Error string `json:"error"`
+	}
+	require.NoError(t, json.Unmarshal(body, &e))
+	require.Contains(t, e.Error, "'video' file is required")
+	require.Len(t, srv.Requests(), 1)
+}
+
 func TestSpeechEndpoint(t *testing.T) {
 	tests := []struct {
 		name       string

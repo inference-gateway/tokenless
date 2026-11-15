@@ -246,12 +246,19 @@ type CreateMusicRequest struct {
 	ResponseFormat  *string  `json:"response_format,omitempty"`
 }
 
-// CreateSFXRequest is the decoded /v1/audio/sfx body.
+// CreateSFXRequest is the decoded /v1/audio/sfx body, JSON or multipart.
+// For a multipart video-scoring form (Fields lists every field name in
+// arrival order, video's filename/size in VideoFilename/VideoSize) only
+// Model is parsed; the remaining form fields are accepted but ignored.
 type CreateSFXRequest struct {
 	DurationSeconds *float32 `json:"duration_seconds,omitempty"`
 	Model           string   `json:"model"`
 	Prompt          string   `json:"prompt"`
 	ResponseFormat  *string  `json:"response_format,omitempty"`
+
+	Fields        []string `json:"fields,omitempty"`
+	VideoFilename *string  `json:"video_filename,omitempty"`
+	VideoSize     *int64   `json:"video_size,omitempty"`
 }
 
 // CreateSpeechRequest is the decoded /v1/audio/speech body.
