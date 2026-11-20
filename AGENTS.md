@@ -4,9 +4,9 @@ Tokenless is a deterministic mock LLM gateway for testing agents without API cal
 
 ## Packages
 
-- `gateway/` — HTTP server (`Server`, `New`), scenario parser/validator (`Load`, `LoadFile`, `Default`), hand-written wire types (`types.go`, `messages.go`), embedded default scenario library (`scenarios.yaml`). Only dependency: `gopkg.in/yaml.v3` — keep it that way, this package is imported into other projects' test suites.
-- Root package (`tokenless`) — Go test helpers: `StartMock` (httptest server + `AssertExpectations`), `Orchestrator`/`Run` (hermetic subprocess runs with caller-supplied env), `BuildBinary` (build once in `TestMain`), NDJSON assertions (`JSONLines`, `ContentsByRole`, `StatusOfType`), tmux TUI drivers (`SendKeys`, `CapturePane`, `WaitForPane`), and `ToolLoop` (drives real tool functions against the mock, with an optional per-call `Approve` callback).
-- `cmd/tokenless` — standalone binary (`--host`, `--port`, `--model`, `--scenarios`; falls back to `$TOKENLESS_SCENARIOS`, then the built-in library). First stdout line is the readiness line `tokenless listening on http://...`; one request log line per call on stderr.
+- `gateway/` — HTTP server (`Server`, `New`), scenario parser/validator (`Load`, `LoadFile`, `Default`), hand-written wire types (`types.go`, `messages.go`), embedded default scenario library (`scenarios.yaml`), scripted media endpoints (images, `/v1/audio/music` + `/v1/audio/sfx` + `/v1/audio/speech` canned clips, `/v1/videos` job lifecycle), and the scriptable Decisions API (`decisions:` rules answer `POST /v1/decisions`). Only dependency: `gopkg.in/yaml.v3` — keep it that way, this package is imported into other projects' test suites.
+- Root package (`tokenless`) — Go test helpers: `StartMock`/`StartMockTLS` (httptest server + `AssertExpectations`), `Orchestrator`/`Run` (hermetic subprocess runs with caller-supplied env), `BuildBinary` (build once in `TestMain`), NDJSON assertions (`JSONLines`, `ContentsByRole`, `StatusOfType`), tmux TUI drivers (`SendKeys`, `CapturePane`, `WaitForPane`), and `ToolLoop` (drives real tool functions against the mock, with an optional per-call `Approve` callback).
+- `cmd/tokenless` — standalone binary (`--host`, `--port`, `--model`, `--scenarios`; falls back to `$TOKENLESS_SCENARIOS`, then the built-in library). `--tls-cert`/`--tls-key` (envs `TOKENLESS_TLS_CERT`/`TOKENLESS_TLS_KEY`) serve HTTPS and `--tls-client-ca` (`TOKENLESS_TLS_CLIENT_CA`) requires client certs; release binaries stamp `--version` via the Dockerfile. First stdout line is the readiness line `tokenless listening on http(s)://...`; one request log line per call on stderr.
 - `examples/00-…`–`10-…` — numbered, runnable examples; most are exercised by their `main_test.go`.
 - `.agents/skills/tokenless/SKILL.md` — instructions for testing agents against the mock.
 
@@ -33,7 +33,7 @@ Try the binary: `go run ./cmd/tokenless --port 8080 --scenarios gateway/scenario
 
 ## Scenario engine gotchas
 
-Scenario selection matches the regex against the first user message only; turns are served by position; the top-level `fallback` serves when turns run out. `expect` blocks validate requests without breaking the flow — assert with `Mock.AssertExpectations(t)` or `GET /v1/expect`. Failure injection (`error`, `stall`, `malformed`) is configured per turn.
+Scenario selection matches the regex against the first user message only; turns are served by position; the top-level `fallback` serves when turns run out. `expect` blocks validate requests without breaking the flow — assert with `Mock.AssertExpectations(t)` or `GET /v1/expect`. Failure injection (`error`, `stall`, `malformed`) is configured per turn. Media endpoints are scripted too: `/v1/videos` runs a queued→completed job lifecycle with its own stall/fail injection.
 
 ## Commits & PRs
 
